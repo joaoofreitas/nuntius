@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ReceiveView: View {
     @State private var hashText: String = ""
@@ -44,16 +45,16 @@ struct ReceiveView: View {
             .padding(.top, 20)
             .padding(.bottom, 20)
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("RECEIVE A FILE")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "b3a7bc"))
                     .kerning(2)
 
                 Text("Ask the sender for their hash, paste it below, and Nuntius will connect directly to their device to download the file — no servers involved.")
-                    .font(.system(size: 12))
+                    .font(.system(size: 14))
                     .foregroundColor(Color(hex: "6b5f78"))
-                    .lineSpacing(4)
+                    .lineSpacing(5)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
@@ -63,17 +64,17 @@ struct ReceiveView: View {
                     if hashText.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("PASTE HASH HERE")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .font(.system(size: 13, weight: .bold, design: .monospaced))
                                 .foregroundColor(Color(hex: "3d3347"))
                                 .kerning(2)
                             Text("blob1ayw...")
-                                .font(.system(size: 13, design: .monospaced))
+                                .font(.system(size: 14, design: .monospaced))
                                 .foregroundColor(Color(hex: "2c2137"))
                         }
                         .padding(20)
                     }
                     TextEditor(text: $hashText)
-                        .font(.system(size: 13, design: .monospaced))
+                        .font(.system(size: 14, design: .monospaced))
                         .foregroundColor(Color(hex: "9cff93"))
                         .tint(Color(hex: "9cff93"))
                         .scrollContentBackground(.hidden)
@@ -81,7 +82,7 @@ struct ReceiveView: View {
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                         .padding(16)
-                        .frame(height: 180)
+                        .frame(height: 200)
                 }
                 .background(Color(hex: "181021"))
                 .overlay(
@@ -92,15 +93,15 @@ struct ReceiveView: View {
                 )
 
                 Button(action: paste) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         Image(systemName: "doc.on.clipboard")
-                            .font(.system(size: 13))
+                            .font(.system(size: 15))
                         Text("PASTE FROM CLIPBOARD")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .kerning(1.5)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 18)
                     .background(Color(hex: "1e1628"))
                     .foregroundColor(Color(hex: "9cff93"))
                 }
@@ -110,18 +111,18 @@ struct ReceiveView: View {
             Spacer()
 
             Button(action: fetchFile) {
-                HStack {
+                HStack(spacing: 10) {
                     if isFetching {
                         ProgressView()
                             .scaleEffect(0.8)
                             .tint(Color(hex: "006413"))
                     }
                     Text(isFetching ? "FETCHING..." : "FETCH")
-                        .font(.system(size: 11, weight: .bold))
-                        .kerning(1.5)
+                        .font(.system(size: 13, weight: .bold))
+                        .kerning(2)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.vertical, 18)
                 .background(hashText.isEmpty ? Color(hex: "1e1628") : Color(hex: "9cff93"))
                 .foregroundColor(hashText.isEmpty ? Color(hex: "4d4456") : Color(hex: "006413"))
             }
@@ -143,7 +144,7 @@ struct ReceiveView: View {
                 Spacer()
                 Button(action: reset) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(Color(hex: "b3a7bc"))
                 }
             }
@@ -151,13 +152,13 @@ struct ReceiveView: View {
             .padding(.top, 20)
             .padding(.bottom, 28)
 
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 24) {
+                HStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
+                        .font(.system(size: 22))
                         .foregroundColor(Color(hex: "9cff93"))
                     Text("RECEIVED")
-                        .font(.system(size: 24, weight: .heavy, design: .monospaced))
+                        .font(.system(size: 26, weight: .heavy, design: .monospaced))
                         .foregroundColor(Color(hex: "9cff93"))
                 }
 
@@ -175,15 +176,15 @@ struct ReceiveView: View {
             Spacer()
 
             Button(action: { showShareSheet = true }) {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: "square.and.arrow.down")
-                        .font(.system(size: 13))
+                        .font(.system(size: 15))
                     Text("SAVE FILE")
-                        .font(.system(size: 11, weight: .bold))
-                        .kerning(1.5)
+                        .font(.system(size: 13, weight: .bold))
+                        .kerning(2)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .padding(.vertical, 18)
                 .background(Color(hex: "9cff93"))
                 .foregroundColor(Color(hex: "006413"))
             }
@@ -198,17 +199,17 @@ struct ReceiveView: View {
     /// @param value The value string to display
     /// @returns A padded label/value row
     private func infoRow(_ label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(.system(size: 8, weight: .bold))
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "b3a7bc"))
                 .kerning(1.2)
             Text(value)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.system(size: 14, design: .monospaced))
                 .foregroundColor(Color(hex: "eee1f7"))
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 
     // MARK: - Actions
