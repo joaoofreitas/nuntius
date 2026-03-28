@@ -63,7 +63,7 @@ struct SendView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 sectionLabel("SEND A FILE")
-                Text("Select a file. A unique hash is generated — share it with the receiver and they download directly from your device, no servers.")
+                Text("Select a file. A unique hash is generated, share it with the receiver and they download directly from your device, no servers.")
                     .font(.manrope(14))
                     .foregroundColor(Color(hex: "9b8faa"))
                     .lineSpacing(6)

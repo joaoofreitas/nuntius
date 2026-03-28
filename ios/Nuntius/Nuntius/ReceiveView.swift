@@ -41,7 +41,7 @@ struct ReceiveView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 sectionLabel("RECEIVE A FILE")
-                Text("Ask the sender for their hash, paste it below, and Nuntius connects directly to their device — no servers involved.")
+                Text("Ask the sender for their hash, paste it below, and Nuntius connects directly to their device. No servers involved.")
                     .font(.manrope(14))
                     .foregroundColor(Color(hex: "9b8faa"))
                     .lineSpacing(6)
