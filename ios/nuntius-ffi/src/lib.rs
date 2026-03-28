@@ -42,6 +42,39 @@ pub trait ReceiveCallback: Send + Sync {
     fn on_error(&self, msg: String);
 }
 
+#[uniffi::export(callback_interface)]
+pub trait DownloadedCallback: Send + Sync {
+    fn on_downloaded(&self);
+}
+
+// ── NotifyingBlobs ────────────────────────────────────────────────────────────
+
+// Wraps BlobsProtocol to fire a watch channel whenever a transfer completes.
+struct NotifyingBlobs {
+    inner: iroh_blobs::BlobsProtocol,
+    tx: tokio::sync::watch::Sender<u32>,
+}
+
+impl std::fmt::Debug for NotifyingBlobs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NotifyingBlobs").finish()
+    }
+}
+
+impl iroh::protocol::ProtocolHandler for NotifyingBlobs {
+    async fn accept(&self, conn: iroh::endpoint::Connection) -> Result<(), iroh::protocol::AcceptError> {
+        let result = self.inner.accept(conn).await;
+        if result.is_ok() {
+            let _ = self.tx.send_modify(|v| *v += 1);
+        }
+        result
+    }
+
+    async fn shutdown(&self) {
+        self.inner.shutdown().await;
+    }
+}
+
 // ── SendHandle ────────────────────────────────────────────────────────────────
 
 /// Opaque handle to an active send session.
@@ -50,6 +83,7 @@ pub trait ReceiveCallback: Send + Sync {
 pub struct SendHandle {
     ticket: String,
     router: Mutex<Option<iroh::protocol::Router>>,
+    download_rx: Mutex<tokio::sync::watch::Receiver<u32>>,
     // Keep the collection tag alive so iroh doesn't GC the blobs.
     _tag: iroh_blobs::api::TempTag,
     // Keep the store alive — dropping it shuts down the blob-serving actor.
@@ -63,6 +97,21 @@ impl SendHandle {
     /// The ticket string the receiver needs to download the file.
     pub fn ticket(&self) -> String {
         self.ticket.clone()
+    }
+
+    /// Register a one-shot callback that fires when the receiver completes downloading.
+    pub fn on_downloaded(&self, callback: Box<dyn DownloadedCallback>) {
+        let rx = rt().block_on(async { self.download_rx.lock().await.clone() });
+        rt().spawn(async move {
+            let mut rx = rx;
+            let initial = *rx.borrow();
+            while rx.changed().await.is_ok() {
+                if *rx.borrow() > initial {
+                    callback.on_downloaded();
+                    break;
+                }
+            }
+        });
     }
 
     /// Shut down the sender. Call this after the transfer completes.
@@ -157,8 +206,11 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
 
     let hash = collection_tag.hash();
 
+    let (tx, rx) = tokio::sync::watch::channel(0u32);
+    let notifying = NotifyingBlobs { inner: blobs, tx };
+
     let router = iroh::protocol::Router::builder(endpoint)
-        .accept(iroh_blobs::ALPN, blobs)
+        .accept(iroh_blobs::ALPN, notifying)
         .spawn();
 
     let ep = router.endpoint();
@@ -170,6 +222,7 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
     Ok(Arc::new(SendHandle {
         ticket: ticket.to_string(),
         router: Mutex::new(Some(router)),
+        download_rx: Mutex::new(rx),
         _tag: collection_tag,
         _store: store,
         _dir: dir,
