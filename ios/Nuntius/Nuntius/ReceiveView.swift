@@ -6,15 +6,18 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ReceiveView: View {
     @State private var hashText: String = ""
     @State private var isFetching: Bool = false
     @State private var receivedFile: ReceivedFile? = nil
+    @State private var showShareSheet: Bool = false
 
     struct ReceivedFile {
         let name: String
         let size: String
+        let url: URL
     }
 
     var body: some View {
@@ -141,11 +144,11 @@ struct ReceiveView: View {
 
             Spacer()
 
-            Button(action: reset) {
+            Button(action: { showShareSheet = true }) {
                 HStack(spacing: 8) {
-                    Image(systemName: "folder")
+                    Image(systemName: "square.and.arrow.down")
                         .font(.system(size: 13))
-                    Text("OPEN FILE")
+                    Text("SAVE FILE")
                         .font(.system(size: 11, weight: .bold))
                         .kerning(1.5)
                 }
@@ -153,6 +156,9 @@ struct ReceiveView: View {
                 .padding(.vertical, 16)
                 .background(Color(hex: "9cff93"))
                 .foregroundColor(Color(hex: "006413"))
+            }
+            .sheet(isPresented: $showShareSheet) {
+                ActivityViewController(url: file.url)
             }
         }
     }
@@ -191,12 +197,13 @@ struct ReceiveView: View {
             let dest = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             do {
                 let name = try await receiveFile(ticket: hashText, destDir: dest.path)
-                let attrs = try? FileManager.default.attributesOfItem(atPath: dest.appendingPathComponent(name).path)
+                let fileURL = dest.appendingPathComponent(name)
+                let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
                 let bytes = attrs?[.size] as? Int64 ?? 0
                 let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
                 await MainActor.run {
                     isFetching = false
-                    receivedFile = ReceivedFile(name: name, size: size)
+                    receivedFile = ReceivedFile(name: name, size: size, url: fileURL)
                 }
             } catch {
                 await MainActor.run { isFetching = false }
@@ -208,6 +215,18 @@ struct ReceiveView: View {
         receivedFile = nil
         hashText = ""
     }
+}
+
+/// UIActivityViewController wrapper for SwiftUI
+/// @param url The file URL to share/save
+private struct ActivityViewController: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

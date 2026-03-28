@@ -16,6 +16,7 @@ struct SendView: View {
     @State private var progress: Double = 0
     @State private var showPicker: Bool = false
     @State private var sendHandle: SendHandle? = nil
+    @State private var errorMessage: String? = nil
 
     var body: some View {
         ZStack {
@@ -30,7 +31,16 @@ struct SendView: View {
             if let url = try? result.get() {
                 fileURL = url
                 fileName = url.lastPathComponent
+                errorMessage = nil
             }
+        }
+        .alert("Error", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK") { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
         }
     }
 
@@ -182,19 +192,27 @@ struct SendView: View {
     // MARK: - Actions
 
     private func startSending() {
+        guard let url = fileURL else { return }
         isSending = true
+        errorMessage = nil
+
+        let accessing = url.startAccessingSecurityScopedResource()
+
         Task {
             do {
-                let handle = try await sendFile(path: fileURL?.path ?? "")
+                let handle = try await sendFile(path: url.path)
                 await MainActor.run {
                     blobHash = handle.ticket()
                     sendHandle = handle
                     progress = 1.0
+                    if accessing { url.stopAccessingSecurityScopedResource() }
                 }
             } catch {
                 await MainActor.run {
                     isSending = false
                     progress = 0
+                    errorMessage = error.localizedDescription
+                    if accessing { url.stopAccessingSecurityScopedResource() }
                 }
             }
         }
