@@ -60,3 +60,8 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# Rust FFI
+ios/nuntius-ffi/target/
+ios/nuntius-ffi/Cargo.lock
+ios/Nuntius/Nuntius/Generated/

@@ -1,7 +1,18 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
 uniffi::setup_scaffolding!();
+
+static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+
+fn rt() -> &'static tokio::runtime::Runtime {
+    RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+    })
+}
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
@@ -17,6 +28,20 @@ macro_rules! e {
     };
 }
 
+// ── Callbacks ─────────────────────────────────────────────────────────────────
+
+#[uniffi::export(callback_interface)]
+pub trait SendCallback: Send + Sync {
+    fn on_ready(&self, handle: Arc<SendHandle>);
+    fn on_error(&self, msg: String);
+}
+
+#[uniffi::export(callback_interface)]
+pub trait ReceiveCallback: Send + Sync {
+    fn on_done(&self, name: String);
+    fn on_error(&self, msg: String);
+}
+
 // ── SendHandle ────────────────────────────────────────────────────────────────
 
 /// Opaque handle to an active send session.
@@ -24,9 +49,9 @@ macro_rules! e {
 #[derive(uniffi::Object)]
 pub struct SendHandle {
     ticket: String,
-    router: Mutex<Option<iroh::protocol::RouterHandle>>,
+    router: Mutex<Option<iroh::protocol::Router>>,
     // Keep the collection tag alive so iroh doesn't GC the blobs.
-    _tag: iroh_blobs::api::blobs::TempTag,
+    _tag: iroh_blobs::api::TempTag,
     // Keep the blob store directory alive until the session ends.
     _dir: tempfile::TempDir,
 }
@@ -39,11 +64,14 @@ impl SendHandle {
     }
 
     /// Shut down the sender. Call this after the transfer completes.
-    pub async fn stop(&self) {
-        let mut guard = self.router.lock().await;
-        if let Some(router) = guard.take() {
-            let _ = router.shutdown().await;
-        }
+    pub fn stop(&self) {
+        rt().block_on(async {
+            let mut guard: tokio::sync::MutexGuard<Option<iroh::protocol::Router>> =
+                self.router.lock().await;
+            if let Some(router) = guard.take() {
+                let _ = router.shutdown().await;
+            }
+        });
     }
 }
 
@@ -51,14 +79,22 @@ impl SendHandle {
 
 /// Start serving a file over iroh P2P.
 ///
-/// Imports the file at `path`, spins up an ephemeral iroh node, and returns a
-/// handle containing the ticket string. The file is served until `stop()` is
-/// called on the handle.
+/// Spawns an async task that imports the file, spins up an ephemeral iroh node,
+/// and calls callback.on_ready() with the handle. Errors are reported via callback.on_error().
 ///
-/// @param path Absolute path to the file to send
-/// @returns A SendHandle whose ticket() can be shared with the receiver
+/// @param path     Absolute path to the file to send
+/// @param callback Receives either the SendHandle or an error message
 #[uniffi::export]
-pub async fn send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
+pub fn send_file(path: String, callback: Box<dyn SendCallback>) {
+    rt().spawn(async move {
+        match do_send_file(path).await {
+            Ok(handle) => callback.on_ready(handle),
+            Err(e) => callback.on_error(e.to_string()),
+        }
+    });
+}
+
+async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
     use iroh::{Endpoint, RelayMode, SecretKey};
     use iroh_blobs::{
         api::blobs::{AddPathOptions, AddProgressItem, ImportMode},
@@ -83,7 +119,6 @@ pub async fn send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
     let store = FsStore::load(dir.path()).await.map_err(|e| e!(e))?;
     let blobs = BlobsProtocol::new(&store, None);
 
-    // Derive a display name from the file path.
     let file_path = std::path::PathBuf::from(&path);
     let name = file_path
         .file_name()
@@ -91,7 +126,6 @@ pub async fn send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
         .unwrap_or("file")
         .to_string();
 
-    // Import the file into the blob store.
     let mut stream = blobs
         .store()
         .add_path_with_opts(AddPathOptions {
@@ -107,31 +141,24 @@ pub async fn send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
             Some(AddProgressItem::Done(tag)) => break tag,
             Some(AddProgressItem::Error(cause)) => return Err(e!(cause)),
             Some(_) => continue,
-            None => {
-                return Err(NuntiusError::Error {
-                    msg: "import stream ended without a result".into(),
-                })
-            }
+            None => return Err(e!("import stream ended without a result")),
         }
     };
 
-    // Wrap the single file in a collection so the receiver can recover the name.
     let collection: Collection = [(name, file_tag.hash())].into_iter().collect();
     let collection_tag = collection
         .store(blobs.store())
         .await
         .map_err(|e| e!(e))?;
 
-    drop(file_tag); // collection tag now protects the data
+    drop(file_tag);
 
     let hash = collection_tag.hash();
 
     let router = iroh::protocol::Router::builder(endpoint)
         .accept(iroh_blobs::ALPN, blobs)
-        .spawn()
-        .map_err(|e| e!(e))?;
+        .spawn();
 
-    // Wait up to 10 s for the relay to be reachable before generating the ticket.
     let ep = router.endpoint();
     let _ = tokio::time::timeout(std::time::Duration::from_secs(10), ep.online()).await;
 
@@ -150,14 +177,23 @@ pub async fn send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
 
 /// Download a file using an iroh ticket.
 ///
-/// Connects to the sender, downloads all blobs, and exports the file(s) into
-/// `dest_dir`. Returns the name of the first file in the collection.
+/// Spawns an async task that connects to the sender, downloads all blobs, exports
+/// the file(s) into dest_dir, and calls callback.on_done() with the filename.
 ///
-/// @param ticket  The ticket string produced by the sender
-/// @param dest_dir Absolute path to the directory where the file will be saved
-/// @returns The filename of the received file relative to dest_dir
+/// @param ticket    The ticket string produced by the sender
+/// @param dest_dir  Absolute path to the directory where the file will be saved
+/// @param callback  Receives either the filename or an error message
 #[uniffi::export]
-pub async fn receive_file(ticket: String, dest_dir: String) -> Result<String, NuntiusError> {
+pub fn receive_file(ticket: String, dest_dir: String, callback: Box<dyn ReceiveCallback>) {
+    rt().spawn(async move {
+        match do_receive_file(ticket, dest_dir).await {
+            Ok(name) => callback.on_done(name),
+            Err(e) => callback.on_error(e.to_string()),
+        }
+    });
+}
+
+async fn do_receive_file(ticket: String, dest_dir: String) -> Result<String, NuntiusError> {
     use iroh::{Endpoint, RelayMode, SecretKey};
     use iroh_blobs::{
         api::{
@@ -187,7 +223,6 @@ pub async fn receive_file(ticket: String, dest_dir: String) -> Result<String, Nu
     let dir = tempfile::tempdir().map_err(|e| e!(e))?;
     let db = FsStore::load(dir.path()).await.map_err(|e| e!(e))?;
 
-    // Connect to the sender and download.
     let connection = endpoint
         .connect(addr, iroh_blobs::protocol::ALPN)
         .await
@@ -214,7 +249,6 @@ pub async fn receive_file(ticket: String, dest_dir: String) -> Result<String, Nu
         }
     }
 
-    // Load the collection and export each file into dest_dir.
     let collection = Collection::load(hash_and_format.hash, db.as_ref())
         .await
         .map_err(|e| e!(e))?;
@@ -255,9 +289,7 @@ pub async fn receive_file(ticket: String, dest_dir: String) -> Result<String, Nu
     db.shutdown().await.map_err(|e| e!(e))?;
 
     if first_name.is_empty() {
-        return Err(NuntiusError::Error {
-            msg: "received collection was empty".into(),
-        });
+        return Err(e!("received collection was empty"));
     }
 
     Ok(first_name)

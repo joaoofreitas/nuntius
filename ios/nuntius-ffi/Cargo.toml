@@ -5,14 +5,14 @@ edition = "2021"
 
 [lib]
 name = "nuntius_ffi"
-crate-type = ["staticlib", "cdylib"]
+crate-type = ["staticlib"]
 
 [[bin]]
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 
 [dependencies]
-uniffi = { version = "0.29", features = ["tokio"] }
+uniffi = { version = "0.29", features = ["cli"] }
 tokio = { version = "1", features = ["full"] }
 iroh = "0.97"
 iroh-blobs = { version = "0.99", features = ["fs-store"] }
@@ -21,6 +21,12 @@ rand = "0.9"
 n0-future = "0.3"
 thiserror = "2"
 tempfile = "3"
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
 
 [build-dependencies]
 uniffi = { version = "0.29", features = ["build"] }

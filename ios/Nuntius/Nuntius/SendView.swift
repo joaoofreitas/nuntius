@@ -201,7 +201,7 @@ struct SendView: View {
     }
 
     private func cancelSend() {
-        Task { await sendHandle?.stop() }
+        sendHandle?.stop()
         sendHandle = nil
         isSending = false
         progress = 0

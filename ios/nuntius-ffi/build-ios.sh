@@ -1,27 +1,35 @@
 #!/bin/bash
 # Build nuntius-ffi as a static library for iOS and generate Swift bindings.
-# Run this from ios/nuntius-ffi/ before opening the Xcode project.
+# Run this from ios/nuntius-ffi/
 
 set -e
 
-CRATE_NAME="nuntius_ffi"
-TARGET="aarch64-apple-ios"
-OUT_DIR="../Nuntius/Nuntius/Generated"
+XCODE=/Volumes/ExternalSSD/Applications/Xcode.app
+CRATE=nuntius_ffi
+TARGET=aarch64-apple-ios
+OUT=../Nuntius/Nuntius/Generated
 
-echo "Adding iOS target..."
+export DEVELOPER_DIR="$XCODE/Contents/Developer"
+export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+
+echo "SDK: $SDKROOT"
+
 rustup target add $TARGET
 
-echo "Building release static lib..."
 cargo build --release --target $TARGET
 
-echo "Generating Swift bindings..."
+mkdir -p $OUT
+
 cargo run --bin uniffi-bindgen generate \
-    --library "target/$TARGET/release/lib${CRATE_NAME}.a" \
+    --library "target/$TARGET/release/lib${CRATE}.a" \
     --language swift \
-    --out-dir "$OUT_DIR"
+    --out-dir "$OUT"
 
 echo ""
-echo "Done. Next steps in Xcode:"
-echo "  1. Add target/$TARGET/release/lib${CRATE_NAME}.a to the project (Build Phases > Link Binary)"
-echo "  2. Add $OUT_DIR/${CRATE_NAME}FFI.h to the bridging header or module map"
-echo "  3. Add the generated $OUT_DIR/${CRATE_NAME}.swift to the target"
+echo "Outputs in $OUT:"
+ls "$OUT"
+echo ""
+echo "In Xcode:"
+echo "  1. Link: target/$TARGET/release/lib${CRATE}.a"
+echo "  2. Add:  $OUT/${CRATE}.swift to the target"
+echo "  3. Add:  $OUT/${CRATE}FFI.h to a module map or bridging header"

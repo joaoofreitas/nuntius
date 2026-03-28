@@ -7,10 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B268A3E92F773B5B005D6F26 /* IrohLib in Frameworks */ = {isa = PBXBuildFile; productRef = B268A3E82F773B5B005D6F26 /* IrohLib */; };
+		B21B3F622F7741C500FD0185 /* libnuntius_ffi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B21B3F612F7741C500FD0185 /* libnuntius_ffi.a */; };
+		B21B3F632F7741C500FD0185 /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B21B3F632F7741C500FD0186 /* Network.framework */; };
+		B21B3F642F7741C500FD0185 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B21B3F642F7741C500FD0186 /* Security.framework */; };
+		B21B3F652F7741C500FD0185 /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B21B3F652F7741C500FD0186 /* libresolv.tbd */; };
+		B21B3F662F7741C500FD0185 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B21B3F662F7741C500FD0186 /* libz.tbd */; };
+		B21B3F672F7741C500FD0185 /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B21B3F672F7741C500FD0186 /* libc++.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		B21B3F612F7741C500FD0185 /* libnuntius_ffi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libnuntius_ffi.a; path = "../nuntius-ffi/target/aarch64-apple-ios/release/libnuntius_ffi.a"; sourceTree = "<group>"; };
+		B21B3F632F7741C500FD0186 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
+		B21B3F642F7741C500FD0186 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		B21B3F652F7741C500FD0186 /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
+		B21B3F662F7741C500FD0186 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		B21B3F672F7741C500FD0186 /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
 		B283F19B2F772C40000FA20E /* Nuntius.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nuntius.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -27,17 +38,35 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B268A3E92F773B5B005D6F26 /* IrohLib in Frameworks */,
+				B21B3F632F7741C500FD0185 /* Network.framework in Frameworks */,
+				B21B3F642F7741C500FD0185 /* Security.framework in Frameworks */,
+				B21B3F652F7741C500FD0185 /* libresolv.tbd in Frameworks */,
+				B21B3F662F7741C500FD0185 /* libz.tbd in Frameworks */,
+				B21B3F672F7741C500FD0185 /* libc++.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B21B3F602F7741C500FD0185 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B21B3F612F7741C500FD0185 /* libnuntius_ffi.a */,
+				B21B3F632F7741C500FD0186 /* Network.framework */,
+				B21B3F642F7741C500FD0186 /* Security.framework */,
+				B21B3F652F7741C500FD0186 /* libresolv.tbd */,
+				B21B3F662F7741C500FD0186 /* libz.tbd */,
+				B21B3F672F7741C500FD0186 /* libc++.tbd */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		B283F1922F772C40000FA20E = {
 			isa = PBXGroup;
 			children = (
 				B283F19D2F772C40000FA20E /* Nuntius */,
+				B21B3F602F7741C500FD0185 /* Frameworks */,
 				B283F19C2F772C40000FA20E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -70,7 +99,6 @@
 			);
 			name = Nuntius;
 			packageProductDependencies = (
-				B268A3E82F773B5B005D6F26 /* IrohLib */,
 			);
 			productName = Nuntius;
 			productReference = B283F19B2F772C40000FA20E /* Nuntius.app */;
@@ -101,7 +129,6 @@
 			mainGroup = B283F1922F772C40000FA20E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				B268A3E72F773B5B005D6F26 /* XCRemoteSwiftPackageReference "iroh-ffi" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B283F19C2F772C40000FA20E /* Products */;
@@ -274,13 +301,21 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = Nuntius/Nuntius.entitlements;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-force_load",
+					"$(SRCROOT)/../nuntius-ffi/target/aarch64-apple-ios/release/libnuntius_ffi.a",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.github.joaoofreitas.Nuntius;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = Nuntius/Generated/nuntius_ffiFFI.h;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -307,13 +342,21 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = Nuntius/Nuntius.entitlements;
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-force_load",
+					"$(SRCROOT)/../nuntius-ffi/target/aarch64-apple-ios/release/libnuntius_ffi.a",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.github.joaoofreitas.Nuntius;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = Nuntius/Generated/nuntius_ffiFFI.h;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -342,25 +385,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		B268A3E72F773B5B005D6F26 /* XCRemoteSwiftPackageReference "iroh-ffi" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/n0-computer/iroh-ffi";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.21.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		B268A3E82F773B5B005D6F26 /* IrohLib */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = B268A3E72F773B5B005D6F26 /* XCRemoteSwiftPackageReference "iroh-ffi" */;
-			productName = IrohLib;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B283F1932F772C40000FA20E /* Project object */;
 }
