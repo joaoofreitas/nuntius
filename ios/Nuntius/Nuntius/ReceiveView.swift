@@ -130,20 +130,7 @@ struct ReceiveView: View {
     /// @returns A centered success view with metadata card and save action
     private func fileReceivedView(_ file: ReceivedFile) -> some View {
         VStack(spacing: 0) {
-            // Minimal header
-            HStack {
-                Text("NUNTIUS")
-                    .font(.spaceBold(22))
-                    .foregroundColor(Color(hex: "f4e7f9"))
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 20)
-            .padding(.bottom, 16)
-
-            Rectangle()
-                .fill(Color(hex: "4d4553").opacity(0.3))
-                .frame(height: 1)
+            appHeader
 
             Spacer()
 

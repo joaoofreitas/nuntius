@@ -18,11 +18,14 @@ struct SendView: View {
     @State private var showPicker: Bool = false
     @State private var sendHandle: SendHandle? = nil
     @State private var errorMessage: String? = nil
+    @State private var didSend: Bool = false
 
     var body: some View {
         ZStack {
             Color(hex: "120c18").ignoresSafeArea()
-            if isSending {
+            if didSend {
+                sentView
+            } else if isSending {
                 transferView
             } else {
                 initView
@@ -211,6 +214,106 @@ struct SendView: View {
         }
     }
 
+    // MARK: - Sent
+
+    private var sentView: some View {
+        VStack(spacing: 0) {
+            appHeader(onDismiss: nil)
+
+            Spacer()
+
+            ZStack {
+                Rectangle()
+                    .fill(Color(hex: "9cff93").opacity(0.08))
+                    .frame(width: 120, height: 120)
+                    .blur(radius: 24)
+                ZStack {
+                    Color(hex: "2b2234")
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(Color(hex: "9cff93"))
+                }
+                .frame(width: 108, height: 108)
+                .overlay(Rectangle().stroke(Color(hex: "9cff93").opacity(0.2), lineWidth: 1))
+            }
+            .padding(.bottom, 28)
+
+            Text("SENT")
+                .font(.spaceBold(60))
+                .foregroundColor(Color(hex: "f4e7f9"))
+                .tracking(-2)
+                .padding(.bottom, 10)
+
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color(hex: "9cff93"))
+                    .frame(width: 5, height: 5)
+                Text("Receiver downloaded your file")
+                    .font(.manrope(12))
+                    .foregroundColor(Color(hex: "b2a7b9"))
+                    .kerning(0.5)
+            }
+            .padding(.bottom, 40)
+
+            HStack(spacing: 16) {
+                ZStack {
+                    Color(hex: "120c18")
+                    Image(systemName: "doc.fill")
+                        .font(.system(size: 26))
+                        .foregroundColor(Color(hex: "9cff93"))
+                }
+                .frame(width: 56, height: 56)
+                .overlay(Rectangle().stroke(Color(hex: "4d4553").opacity(0.4), lineWidth: 1))
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(fileName)
+                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                        .foregroundColor(Color(hex: "f4e7f9"))
+                        .lineLimit(2)
+                    if !fileSize.isEmpty {
+                        Text(fileSize)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(Color(hex: "b2a7b9"))
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(20)
+            .background(Color(hex: "1e1626"))
+            .overlay(Rectangle().stroke(Color(hex: "9cff93").opacity(0.12), lineWidth: 1))
+            .padding(.horizontal, 24)
+
+            Spacer()
+
+            VStack(spacing: 8) {
+                LinearGradient(
+                    colors: [.clear, Color(hex: "4d4553").opacity(0.4), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(height: 1)
+                .padding(.horizontal, 40)
+
+                Text("NUNTIUS  ·  P2P TRANSFER COMPLETE")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(Color(hex: "b2a7b9").opacity(0.3))
+                    .kerning(2)
+            }
+            .padding(.bottom, 20)
+
+            Button(action: resetSend) {
+                Text("SEND ANOTHER")
+                    .font(.spaceBold(14))
+                    .kerning(3)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 22)
+                    .background(Color(hex: "9cff93"))
+                    .foregroundColor(Color(hex: "006413"))
+            }
+        }
+    }
+
     private var fileMetaBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(fileName)
@@ -310,6 +413,13 @@ struct SendView: View {
                     sendHandle = handle
                     if accessing { url.stopAccessingSecurityScopedResource() }
                 }
+                handle.onDownloaded(callback: TransferDoneCallback {
+                    DispatchQueue.main.async {
+                        didSend = true
+                        sendHandle?.stop()
+                        sendHandle = nil
+                    }
+                })
             } catch {
                 await MainActor.run {
                     isSending = false
@@ -325,6 +435,29 @@ struct SendView: View {
         sendHandle = nil
         isSending = false
         blobHash = ""
+    }
+
+    private func resetSend() {
+        didSend = false
+        isSending = false
+        blobHash = ""
+        fileName = ""
+        fileSize = ""
+        fileURL = nil
+        sendHandle = nil
+    }
+}
+
+/// Bridges the uniffi DownloadedCallback protocol to a Swift closure.
+private class TransferDoneCallback: DownloadedCallback {
+    private let handler: () -> Void
+
+    init(_ handler: @escaping () -> Void) {
+        self.handler = handler
+    }
+
+    func onDownloaded() {
+        handler()
     }
 }
 
