@@ -52,6 +52,8 @@ pub struct SendHandle {
     router: Mutex<Option<iroh::protocol::Router>>,
     // Keep the collection tag alive so iroh doesn't GC the blobs.
     _tag: iroh_blobs::api::TempTag,
+    // Keep the store alive — dropping it shuts down the blob-serving actor.
+    _store: iroh_blobs::store::fs::FsStore,
     // Keep the blob store directory alive until the session ends.
     _dir: tempfile::TempDir,
 }
@@ -130,7 +132,7 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
         .store()
         .add_path_with_opts(AddPathOptions {
             path: file_path,
-            mode: ImportMode::TryReference,
+            mode: ImportMode::Copy,
             format: BlobFormat::Raw,
         })
         .stream()
@@ -169,6 +171,7 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
         ticket: ticket.to_string(),
         router: Mutex::new(Some(router)),
         _tag: collection_tag,
+        _store: store,
         _dir: dir,
     }))
 }
