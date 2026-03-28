@@ -12,21 +12,27 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color(hex: "120b1a").ignoresSafeArea()
+            Color(hex: "120c18").ignoresSafeArea()
 
             SendView()
                 .opacity(tab == 0 ? 1 : 0)
-                .padding(.bottom, 56)
+                .padding(.bottom, 60)
 
             ReceiveView()
                 .opacity(tab == 1 ? 1 : 0)
-                .padding(.bottom, 56)
+                .padding(.bottom, 60)
 
             HStack(spacing: 0) {
                 tabItem(0, label: "SEND", icon: "arrow.up.circle")
                 tabItem(1, label: "RECEIVE", icon: "arrow.down.circle")
             }
+            .frame(height: 60)
             .background(Color(hex: "181021"))
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color(hex: "4d4553").opacity(0.4))
+                    .frame(height: 1)
+            }
         }
         .preferredColorScheme(.dark)
     }
@@ -43,12 +49,11 @@ struct ContentView: View {
                 Image(systemName: active ? "\(icon).fill" : icon)
                     .font(.system(size: 20))
                 Text(label)
-                    .font(.system(size: 9, weight: .bold))
-                    .kerning(1.2)
+                    .font(.spaceBold(9))
+                    .kerning(1.5)
             }
-            .foregroundColor(active ? Color(hex: "9cff93") : Color(hex: "b3a7bc"))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .foregroundColor(active ? Color(hex: "9cff93") : Color(hex: "4d4553"))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
@@ -65,6 +70,17 @@ extension Color {
             blue:  Double( rgb        & 0xFF) / 255
         )
     }
+}
+
+extension Font {
+    /// Space Grotesk Bold — headings, buttons, labels
+    static func spaceBold(_ size: CGFloat) -> Font { .custom("SpaceGrotesk-Bold", size: size) }
+    /// Space Grotesk Regular
+    static func spaceGrotesk(_ size: CGFloat) -> Font { .custom("SpaceGrotesk-Regular", size: size) }
+    /// Manrope Regular — body text and descriptions
+    static func manrope(_ size: CGFloat) -> Font { .custom("Manrope-Regular", size: size) }
+    /// Manrope Medium
+    static func manropeMedium(_ size: CGFloat) -> Font { .custom("Manrope-Medium", size: size) }
 }
 
 #Preview {

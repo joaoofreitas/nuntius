@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct SendView: View {
@@ -20,7 +21,7 @@ struct SendView: View {
 
     var body: some View {
         ZStack {
-            Color(hex: "120b1a").ignoresSafeArea()
+            Color(hex: "120c18").ignoresSafeArea()
             if isSending {
                 transferView
             } else {
@@ -28,16 +29,15 @@ struct SendView: View {
             }
         }
         .fileImporter(isPresented: $showPicker, allowedContentTypes: [.item]) { result in
-            if let url = try? result.get() {
-                fileURL = url
-                fileName = url.lastPathComponent
-                errorMessage = nil
-                let accessing = url.startAccessingSecurityScopedResource()
-                let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
-                let bytes = attrs?[.size] as? Int64 ?? 0
-                fileSize = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
-                if accessing { url.stopAccessingSecurityScopedResource() }
-            }
+            guard let url = try? result.get() else { return }
+            fileURL = url
+            fileName = url.lastPathComponent
+            errorMessage = nil
+            let accessing = url.startAccessingSecurityScopedResource()
+            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+            let bytes = attrs?[.size] as? Int64 ?? 0
+            fileSize = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+            if accessing { url.stopAccessingSecurityScopedResource() }
         }
         .alert("Error", isPresented: Binding(
             get: { errorMessage != nil },
@@ -49,103 +49,90 @@ struct SendView: View {
         }
     }
 
-    // MARK: - Send File Init
+    // MARK: - Init
 
     private var initView: some View {
         VStack(spacing: 0) {
-            header
+            appHeader(onDismiss: nil)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("SEND A FILE")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color(hex: "b3a7bc"))
-                    .kerning(2)
-
-                Text("Select any file from your device. A unique hash is generated — share it with the receiver to let them download directly from you over P2P.")
-                    .font(.system(size: 14))
-                    .foregroundColor(Color(hex: "6b5f78"))
-                    .lineSpacing(5)
+            VStack(alignment: .leading, spacing: 8) {
+                sectionLabel("SEND A FILE")
+                Text("Select a file. A unique hash is generated — share it with the receiver and they download directly from your device, no servers.")
+                    .font(.manrope(14))
+                    .foregroundColor(Color(hex: "9b8faa"))
+                    .lineSpacing(6)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
 
-            Button(action: { showPicker = true }) {
-                VStack(spacing: 20) {
-                    Spacer()
-                    Image(systemName: fileName.isEmpty ? "arrow.up.doc" : "doc.fill")
-                        .font(.system(size: 56, weight: .ultraLight))
-                        .foregroundColor(Color(hex: fileName.isEmpty ? "4d4456" : "9cff93"))
+            dropZone
+                .padding(.horizontal, 24)
 
-                    VStack(spacing: 10) {
-                        if fileName.isEmpty {
-                            Text("TAP TO SELECT FILE")
-                                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                .foregroundColor(Color(hex: "4d4456"))
-                                .kerning(2)
-                            Text("Photos, documents, archives, any format")
-                                .font(.system(size: 13))
-                                .foregroundColor(Color(hex: "3d3347"))
-                        } else {
-                            Text(fileName)
-                                .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                                .foregroundColor(Color(hex: "9cff93"))
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                                .padding(.horizontal, 16)
-                            Text("Tap to change")
-                                .font(.system(size: 13))
-                                .foregroundColor(Color(hex: "6b5f78"))
-                        }
-                    }
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-                .frame(maxHeight: .infinity)
-                .background(Color(hex: "181021"))
-                .overlay(
-                    Rectangle().strokeBorder(
-                        Color(hex: fileName.isEmpty ? "2c2137" : "9cff93")
-                            .opacity(fileName.isEmpty ? 1 : 0.5),
-                        style: StrokeStyle(lineWidth: 1, dash: [10, 6])
-                    )
-                )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
+            Spacer().frame(height: 24)
 
-            Spacer().frame(height: 20)
-
-            Button(action: startSending) {
-                Text("SEND")
-                    .font(.system(size: 13, weight: .bold))
-                    .kerning(2)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(fileName.isEmpty ? Color(hex: "1e1628") : Color(hex: "9cff93"))
-                    .foregroundColor(fileName.isEmpty ? Color(hex: "4d4456") : Color(hex: "006413"))
-            }
+            primaryButton(
+                label: isSending ? "PREPARING..." : "SEND",
+                active: !fileName.isEmpty,
+                action: startSending
+            )
             .disabled(fileName.isEmpty)
         }
     }
 
-    // MARK: - Transferring Data
+    private var dropZone: some View {
+        Button(action: { showPicker = true }) {
+            VStack(spacing: 18) {
+                Spacer()
+                Image(systemName: fileName.isEmpty ? "arrow.up.doc" : "doc.fill")
+                    .font(.system(size: 48, weight: .ultraLight))
+                    .foregroundColor(Color(hex: fileName.isEmpty ? "4d4553" : "9cff93"))
+
+                VStack(spacing: 8) {
+                    if fileName.isEmpty {
+                        Text("TAP TO SELECT FILE")
+                            .font(.spaceBold(13))
+                            .foregroundColor(Color(hex: "4d4553"))
+                            .kerning(2)
+                        Text("Photos, documents, archives — any format")
+                            .font(.manrope(13))
+                            .foregroundColor(Color(hex: "6b5f78"))
+                    } else {
+                        Text(fileName)
+                            .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                            .foregroundColor(Color(hex: "9cff93"))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(3)
+                            .padding(.horizontal, 20)
+                        if !fileSize.isEmpty {
+                            Text(fileSize)
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundColor(Color(hex: "6b5f78"))
+                        }
+                        Text("Tap to change")
+                            .font(.manrope(12))
+                            .foregroundColor(Color(hex: "6b5f78"))
+                    }
+                }
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(hex: "1e1626"))
+            .overlay(
+                Rectangle().strokeBorder(
+                    Color(hex: fileName.isEmpty ? "2c2137" : "9cff93")
+                        .opacity(fileName.isEmpty ? 1 : 0.35),
+                    style: StrokeStyle(lineWidth: 1, dash: [8, 5])
+                )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Transfer
 
     private var transferView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("NUNTIUS")
-                    .font(.system(size: 22, weight: .heavy, design: .monospaced))
-                    .foregroundColor(Color(hex: "eee1f7"))
-                Spacer()
-                Button(action: cancelSend) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color(hex: "b3a7bc"))
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 24)
+            appHeader(onDismiss: cancelSend)
 
             if blobHash.isEmpty {
                 preparingView
@@ -158,74 +145,49 @@ struct SendView: View {
     }
 
     private var preparingView: some View {
-        VStack(alignment: .leading, spacing: 32) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(fileName)
-                    .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                    .foregroundColor(Color(hex: "eee1f7"))
-                    .lineLimit(2)
-                if !fileSize.isEmpty {
-                    Text(fileSize)
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundColor(Color(hex: "6b5f78"))
-                }
-            }
+        VStack(alignment: .leading, spacing: 28) {
+            fileMetaBlock.padding(.horizontal, 24)
 
-            VStack(alignment: .leading, spacing: 16) {
-                Text("PREPARING")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color(hex: "9cff93"))
-                    .kerning(2)
+            VStack(alignment: .leading, spacing: 12) {
+                sectionLabel("PREPARING").padding(.horizontal, 24)
                 ProgressView()
                     .progressViewStyle(.linear)
                     .tint(Color(hex: "9cff93"))
-                    .background(Color(hex: "1e1628"))
+                    .padding(.horizontal, 24)
                 Text("Importing file and starting P2P node...")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "4d4456"))
+                    .font(.manrope(13))
+                    .foregroundColor(Color(hex: "9b8faa"))
+                    .padding(.horizontal, 24)
             }
         }
-        .padding(.horizontal, 20)
     }
 
     private var readyView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(fileName)
-                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                        .foregroundColor(Color(hex: "eee1f7"))
-                        .lineLimit(2)
-                    if !fileSize.isEmpty {
-                        Text(fileSize)
-                            .font(.system(size: 13, design: .monospaced))
-                            .foregroundColor(Color(hex: "6b5f78"))
-                    }
-                }
+                fileMetaBlock
 
-                HStack(spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
                     Rectangle()
-                        .fill(Color(hex: "9cff93").opacity(0.5))
-                        .frame(width: 2, height: 36)
+                        .fill(Color(hex: "9cff93").opacity(0.4))
+                        .frame(width: 2)
                     Text("Keep Nuntius open while the receiver downloads. Switching tabs is fine.")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(hex: "6b5f78"))
-                        .lineSpacing(3)
+                        .font(.manrope(13))
+                        .foregroundColor(Color(hex: "9b8faa"))
+                        .lineSpacing(4)
                 }
+                .fixedSize(horizontal: false, vertical: true)
 
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("SHARE THIS HASH")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(Color(hex: "b3a7bc"))
-                            .kerning(1.5)
+                        sectionLabel("SHARE THIS HASH")
                         Spacer()
                         Button(action: { UIPasteboard.general.string = blobHash }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "doc.on.doc")
                                     .font(.system(size: 12))
                                 Text("COPY")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .font(.spaceBold(11))
                                     .kerning(1)
                             }
                             .foregroundColor(Color(hex: "006413"))
@@ -236,29 +198,98 @@ struct SendView: View {
                     }
 
                     Text(blobHash)
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(.system(size: 14, design: .monospaced))
                         .foregroundColor(Color(hex: "9cff93"))
-                        .lineSpacing(5)
+                        .lineSpacing(6)
                         .padding(18)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(hex: "181021"))
-                        .overlay(Rectangle().stroke(Color(hex: "9cff93").opacity(0.25), lineWidth: 1))
+                        .background(Color(hex: "1e1626"))
+                        .overlay(Rectangle().stroke(Color(hex: "9cff93").opacity(0.15), lineWidth: 1))
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 24)
         }
     }
 
-    private var header: some View {
-        HStack {
-            Text("NUNTIUS")
-                .font(.system(size: 22, weight: .heavy, design: .monospaced))
-                .foregroundColor(Color(hex: "eee1f7"))
-            Spacer()
+    private var fileMetaBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(fileName)
+                .font(.system(size: 17, weight: .semibold, design: .monospaced))
+                .foregroundColor(Color(hex: "f4e7f9"))
+                .lineLimit(2)
+            if !fileSize.isEmpty {
+                Text(fileSize)
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundColor(Color(hex: "b2a7b9"))
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 20)
+    }
+
+    // MARK: - Shared Components
+
+    /// Top brand header with optional dismiss button and divider
+    /// @param onDismiss Action for the X button, or nil to hide it
+    /// @returns A styled header with NUNTIUS branding
+    private func appHeader(onDismiss: (() -> Void)?) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("NUNTIUS")
+                        .font(.spaceBold(30))
+                        .foregroundColor(Color(hex: "f4e7f9"))
+                    Text("P2P · No Servers · Encrypted")
+                        .font(.manrope(11))
+                        .foregroundColor(Color(hex: "6b5f78"))
+                        .kerning(0.5)
+                }
+                Spacer()
+                if let onDismiss = onDismiss {
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(Color(hex: "b2a7b9"))
+                            .frame(width: 36, height: 36)
+                            .background(Color(hex: "1e1626"))
+                            .overlay(Rectangle().stroke(Color(hex: "4d4553").opacity(0.5), lineWidth: 1))
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
+
+            Rectangle()
+                .fill(Color(hex: "4d4553").opacity(0.3))
+                .frame(height: 1)
+                .padding(.bottom, 24)
+        }
+    }
+
+    /// Uppercase section label in monospaced style
+    /// @param title The label text
+    /// @returns A styled section label view
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.spaceBold(10))
+            .foregroundColor(Color(hex: "b2a7b9"))
+            .kerning(2.5)
+    }
+
+    /// Full-width primary or disabled action button
+    /// @param label The button text
+    /// @param active Whether the primary style is applied
+    /// @param action The button action
+    /// @returns A styled full-width button
+    private func primaryButton(label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.spaceBold(14))
+                .kerning(3)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 22)
+                .background(active ? Color(hex: "9cff93") : Color(hex: "1e1626"))
+                .foregroundColor(active ? Color(hex: "006413") : Color(hex: "4d4553"))
+        }
     }
 
     // MARK: - Actions
@@ -295,7 +326,6 @@ struct SendView: View {
         isSending = false
         blobHash = ""
     }
-
 }
 
 #Preview {
