@@ -14,11 +14,13 @@ struct ContentView: View {
         ZStack(alignment: .bottom) {
             Color(hex: "120b1a").ignoresSafeArea()
 
-            Group {
-                if tab == 0 { SendView() }
-                else { ReceiveView() }
-            }
-            .padding(.bottom, 56)
+            SendView()
+                .opacity(tab == 0 ? 1 : 0)
+                .padding(.bottom, 56)
+
+            ReceiveView()
+                .opacity(tab == 1 ? 1 : 0)
+                .padding(.bottom, 56)
 
             HStack(spacing: 0) {
                 tabItem(0, label: "SEND", icon: "arrow.up.circle")

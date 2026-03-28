@@ -50,42 +50,65 @@ struct SendView: View {
         VStack(spacing: 0) {
             header
 
+            VStack(alignment: .leading, spacing: 12) {
+                Text("SEND A FILE")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(Color(hex: "b3a7bc"))
+                    .kerning(2)
+
+                Text("Select any file from your device. A unique hash is generated — share it with the receiver to let them download directly from you over P2P.")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "6b5f78"))
+                    .lineSpacing(4)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+
             Button(action: { showPicker = true }) {
-                VStack(spacing: 12) {
-                    Image(systemName: "arrow.up.circle")
-                        .font(.system(size: 40, weight: .ultraLight))
-                        .foregroundColor(Color(hex: "9cff93"))
-                    if fileName.isEmpty {
-                        Text("SELECT FILE")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundColor(Color(hex: "9cff93"))
-                            .kerning(2.5)
-                    } else {
-                        Text(fileName)
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundColor(Color(hex: "9cff93"))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                        Text("Tap to change")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(hex: "b3a7bc"))
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: fileName.isEmpty ? "arrow.up.doc" : "doc.fill")
+                        .font(.system(size: 52, weight: .ultraLight))
+                        .foregroundColor(Color(hex: fileName.isEmpty ? "4d4456" : "9cff93"))
+
+                    VStack(spacing: 8) {
+                        if fileName.isEmpty {
+                            Text("TAP TO SELECT FILE")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .foregroundColor(Color(hex: "4d4456"))
+                                .kerning(2)
+                            Text("Photos, documents, archives, any format")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "3d3347"))
+                        } else {
+                            Text(fileName)
+                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                .foregroundColor(Color(hex: "9cff93"))
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                                .padding(.horizontal, 16)
+                            Text("Tap to change")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "6b5f78"))
+                        }
                     }
+                    Spacer()
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 180)
+                .frame(maxHeight: .infinity)
                 .background(Color(hex: "181021"))
                 .overlay(
                     Rectangle().strokeBorder(
-                        Color(hex: fileName.isEmpty ? "4d4456" : "9cff93")
-                            .opacity(fileName.isEmpty ? 0.4 : 0.7),
-                        style: StrokeStyle(lineWidth: 1, dash: [8, 5])
+                        Color(hex: fileName.isEmpty ? "2c2137" : "9cff93")
+                            .opacity(fileName.isEmpty ? 1 : 0.5),
+                        style: StrokeStyle(lineWidth: 1, dash: [10, 6])
                     )
                 )
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
 
-            Spacer()
+            Spacer().frame(height: 20)
 
             Button(action: startSending) {
                 Text("SEND")
@@ -147,6 +170,16 @@ struct SendView: View {
                         }
                     }
                     .frame(height: 2)
+                }
+
+                HStack(spacing: 8) {
+                    Rectangle()
+                        .fill(Color(hex: "9cff93").opacity(0.5))
+                        .frame(width: 2, height: 28)
+                    Text("Keep Nuntius open while the receiver downloads. Switching tabs is fine.")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "6b5f78"))
+                        .lineSpacing(2)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {

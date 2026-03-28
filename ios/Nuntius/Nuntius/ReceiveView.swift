@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct ReceiveView: View {
     @State private var hashText: String = ""
@@ -43,36 +42,67 @@ struct ReceiveView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
+            .padding(.bottom, 20)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("RECEIVE A FILE")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(Color(hex: "b3a7bc"))
+                    .kerning(2)
+
+                Text("Ask the sender for their hash, paste it below, and Nuntius will connect directly to their device to download the file — no servers involved.")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "6b5f78"))
+                    .lineSpacing(4)
+            }
+            .padding(.horizontal, 20)
             .padding(.bottom, 24)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("BLOB HASH")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(Color(hex: "b3a7bc"))
-                    .kerning(1.5)
-                VStack(spacing: 0) {
-                    HStack {
-                        TextField("blobQm...", text: $hashText)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(Color(hex: "9cff93"))
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                            .tint(Color(hex: "9cff93"))
-                        Button(action: paste) {
-                            Text("PASTE")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(Color(hex: "006413"))
-                                .kerning(1.0)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color(hex: "9cff93"))
+            VStack(spacing: 0) {
+                ZStack(alignment: .topLeading) {
+                    if hashText.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("PASTE HASH HERE")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .foregroundColor(Color(hex: "3d3347"))
+                                .kerning(2)
+                            Text("blob1ayw...")
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundColor(Color(hex: "2c2137"))
                         }
+                        .padding(20)
                     }
-                    .padding(16)
+                    TextEditor(text: $hashText)
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundColor(Color(hex: "9cff93"))
+                        .tint(Color(hex: "9cff93"))
+                        .scrollContentBackground(.hidden)
+                        .background(Color.clear)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                        .padding(16)
+                        .frame(height: 180)
+                }
+                .background(Color(hex: "181021"))
+                .overlay(
+                    Rectangle().stroke(
+                        Color(hex: hashText.isEmpty ? "2c2137" : "9cff93").opacity(hashText.isEmpty ? 1 : 0.5),
+                        lineWidth: 1
+                    )
+                )
+
+                Button(action: paste) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.on.clipboard")
+                            .font(.system(size: 13))
+                        Text("PASTE FROM CLIPBOARD")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .kerning(1.5)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
                     .background(Color(hex: "1e1628"))
-                    Rectangle()
-                        .fill(hashText.isEmpty ? Color.clear : Color(hex: "9cff93"))
-                        .frame(height: 2)
+                    .foregroundColor(Color(hex: "9cff93"))
                 }
             }
             .padding(.horizontal, 20)
