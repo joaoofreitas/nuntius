@@ -1,5 +1,5 @@
 use std::sync::{Arc, OnceLock};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc};
 
 uniffi::setup_scaffolding!();
 
@@ -38,41 +38,20 @@ pub trait SendCallback: Send + Sync {
 
 #[uniffi::export(callback_interface)]
 pub trait ReceiveCallback: Send + Sync {
+    fn on_progress(&self, bytes_received: u64, total_bytes: u64);
     fn on_done(&self, name: String);
     fn on_error(&self, msg: String);
 }
 
+/// Progress events for the sender side. Registered on a SendHandle after it is ready.
 #[uniffi::export(callback_interface)]
-pub trait DownloadedCallback: Send + Sync {
-    fn on_downloaded(&self);
-}
-
-// ── NotifyingBlobs ────────────────────────────────────────────────────────────
-
-// Wraps BlobsProtocol to fire a watch channel whenever a transfer completes.
-struct NotifyingBlobs {
-    inner: iroh_blobs::BlobsProtocol,
-    tx: tokio::sync::watch::Sender<u32>,
-}
-
-impl std::fmt::Debug for NotifyingBlobs {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NotifyingBlobs").finish()
-    }
-}
-
-impl iroh::protocol::ProtocolHandler for NotifyingBlobs {
-    async fn accept(&self, conn: iroh::endpoint::Connection) -> Result<(), iroh::protocol::AcceptError> {
-        let result = self.inner.accept(conn).await;
-        if result.is_ok() {
-            let _ = self.tx.send_modify(|v| *v += 1);
-        }
-        result
-    }
-
-    async fn shutdown(&self) {
-        self.inner.shutdown().await;
-    }
+pub trait SendProgressCallback: Send + Sync {
+    /// Called when a receiver first connects.
+    fn on_receiver_connected(&self);
+    /// Called repeatedly as bytes are transferred to the receiver.
+    fn on_progress(&self, bytes_sent: u64, total_bytes: u64);
+    /// Called when the receiver has finished downloading.
+    fn on_done(&self);
 }
 
 // ── SendHandle ────────────────────────────────────────────────────────────────
@@ -83,7 +62,7 @@ impl iroh::protocol::ProtocolHandler for NotifyingBlobs {
 pub struct SendHandle {
     ticket: String,
     router: Mutex<Option<iroh::protocol::Router>>,
-    download_rx: Mutex<tokio::sync::watch::Receiver<u32>>,
+    event_rx: Mutex<Option<mpsc::Receiver<iroh_blobs::provider::events::ProviderMessage>>>,
     // Keep the collection tag alive so iroh doesn't GC the blobs.
     _tag: iroh_blobs::api::TempTag,
     // Keep the store alive — dropping it shuts down the blob-serving actor.
@@ -99,16 +78,53 @@ impl SendHandle {
         self.ticket.clone()
     }
 
-    /// Register a one-shot callback that fires when the receiver completes downloading.
-    pub fn on_downloaded(&self, callback: Box<dyn DownloadedCallback>) {
-        let rx = rt().block_on(async { self.download_rx.lock().await.clone() });
+    /// Register a callback that receives connection and transfer progress events.
+    /// May only be called once; subsequent calls are no-ops.
+    pub fn on_send_progress(&self, callback: Box<dyn SendProgressCallback>) {
+        let rx = rt().block_on(async { self.event_rx.lock().await.take() });
+        let Some(mut rx) = rx else { return };
+
+        let callback = Arc::new(callback);
+        let completed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
         rt().spawn(async move {
-            let mut rx = rx;
-            let initial = *rx.borrow();
-            while rx.changed().await.is_ok() {
-                if *rx.borrow() > initial {
-                    callback.on_downloaded();
-                    break;
+            use iroh_blobs::provider::events::{ProviderMessage, RequestUpdate};
+
+            while let Some(msg) = rx.recv().await {
+                match msg {
+                    ProviderMessage::ClientConnectedNotify(_) => {
+                        callback.on_receiver_connected();
+                    }
+                    ProviderMessage::GetRequestReceivedNotify(msg) => {
+                        let cb = Arc::clone(&callback);
+                        let done_flag = Arc::clone(&completed);
+                        let mut request_rx = msg.rx;
+                        tokio::spawn(async move {
+                            let mut total = 0u64;
+                            while let Ok(Some(update)) = request_rx.recv().await {
+                                match update {
+                                    RequestUpdate::Started(s) => {
+                                        total = s.size;
+                                    }
+                                    RequestUpdate::Progress(p) => {
+                                        cb.on_progress(p.end_offset, total);
+                                    }
+                                    RequestUpdate::Completed(_) => {
+                                        done_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                                        break;
+                                    }
+                                    RequestUpdate::Aborted(_) => break,
+                                }
+                            }
+                        });
+                    }
+                    ProviderMessage::ConnectionClosed(_) => {
+                        if completed.load(std::sync::atomic::Ordering::SeqCst) {
+                            callback.on_done();
+                        }
+                        break;
+                    }
+                    _ => {}
                 }
             }
         });
@@ -150,6 +166,7 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
     use iroh_blobs::{
         api::blobs::{AddPathOptions, AddProgressItem, ImportMode},
         format::collection::Collection,
+        provider::events::{ConnectMode, EventMask, EventSender, RequestMode},
         store::fs::FsStore,
         ticket::BlobTicket,
         BlobFormat, BlobsProtocol,
@@ -168,7 +185,19 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
 
     let dir = tempfile::tempdir().map_err(|e| e!(e))?;
     let store = FsStore::load(dir.path()).await.map_err(|e| e!(e))?;
-    let blobs = BlobsProtocol::new(&store, None);
+
+    let (event_tx, event_rx) = mpsc::channel(32);
+    let blobs = BlobsProtocol::new(
+        &store,
+        Some(EventSender::new(
+            event_tx,
+            EventMask {
+                connected: ConnectMode::Notify,
+                get: RequestMode::NotifyLog,
+                ..EventMask::DEFAULT
+            },
+        )),
+    );
 
     let file_path = std::path::PathBuf::from(&path);
     let name = file_path
@@ -206,11 +235,8 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
 
     let hash = collection_tag.hash();
 
-    let (tx, rx) = tokio::sync::watch::channel(0u32);
-    let notifying = NotifyingBlobs { inner: blobs, tx };
-
     let router = iroh::protocol::Router::builder(endpoint)
-        .accept(iroh_blobs::ALPN, notifying)
+        .accept(iroh_blobs::ALPN, blobs)
         .spawn();
 
     let ep = router.endpoint();
@@ -222,7 +248,7 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
     Ok(Arc::new(SendHandle {
         ticket: ticket.to_string(),
         router: Mutex::new(Some(router)),
-        download_rx: Mutex::new(rx),
+        event_rx: Mutex::new(Some(event_rx)),
         _tag: collection_tag,
         _store: store,
         _dir: dir,
@@ -235,21 +261,27 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
 ///
 /// Spawns an async task that connects to the sender, downloads all blobs, exports
 /// the file(s) into dest_dir, and calls callback.on_done() with the filename.
+/// Progress is reported via callback.on_progress() during the download.
 ///
 /// @param ticket    The ticket string produced by the sender
 /// @param dest_dir  Absolute path to the directory where the file will be saved
-/// @param callback  Receives either the filename or an error message
+/// @param callback  Receives progress updates, the filename on success, or an error message
 #[uniffi::export]
 pub fn receive_file(ticket: String, dest_dir: String, callback: Box<dyn ReceiveCallback>) {
+    let callback = Arc::new(callback);
     rt().spawn(async move {
-        match do_receive_file(ticket, dest_dir).await {
+        match do_receive_file(ticket, dest_dir, Arc::clone(&callback)).await {
             Ok(name) => callback.on_done(name),
             Err(e) => callback.on_error(e.to_string()),
         }
     });
 }
 
-async fn do_receive_file(ticket: String, dest_dir: String) -> Result<String, NuntiusError> {
+async fn do_receive_file(
+    ticket: String,
+    dest_dir: String,
+    callback: Arc<Box<dyn ReceiveCallback>>,
+) -> Result<String, NuntiusError> {
     use iroh::{Endpoint, RelayMode, SecretKey};
     use iroh_blobs::{
         api::{
@@ -257,6 +289,7 @@ async fn do_receive_file(ticket: String, dest_dir: String) -> Result<String, Nun
             remote::GetProgressItem,
         },
         format::collection::Collection,
+        get::request::get_hash_seq_and_sizes,
         store::fs::FsStore,
         ticket::BlobTicket,
     };
@@ -284,6 +317,17 @@ async fn do_receive_file(ticket: String, dest_dir: String) -> Result<String, Nun
         .await
         .map_err(|e| e!(e))?;
 
+    // Fetch sizes before downloading so we can report meaningful progress.
+    let (_hash_seq, sizes) = get_hash_seq_and_sizes(
+        &connection,
+        &hash_and_format.hash,
+        1024 * 1024 * 32,
+        None,
+    )
+    .await
+    .map_err(|e| e!(e))?;
+    let total_bytes: u64 = sizes.iter().copied().sum();
+
     let local = db
         .remote()
         .local(hash_and_format)
@@ -291,6 +335,7 @@ async fn do_receive_file(ticket: String, dest_dir: String) -> Result<String, Nun
         .map_err(|e| e!(e))?;
 
     if !local.is_complete() {
+        let local_bytes = local.local_bytes();
         let mut stream = db
             .remote()
             .execute_get(connection, local.missing())
@@ -298,9 +343,11 @@ async fn do_receive_file(ticket: String, dest_dir: String) -> Result<String, Nun
 
         while let Some(item) = stream.next().await {
             match item {
+                GetProgressItem::Progress(offset) => {
+                    callback.on_progress(local_bytes + offset, total_bytes);
+                }
                 GetProgressItem::Done(_) => break,
                 GetProgressItem::Error(cause) => return Err(e!(cause)),
-                GetProgressItem::Progress(_) => continue,
             }
         }
     }

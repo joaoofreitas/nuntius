@@ -11,6 +11,7 @@ OUT=../Nuntius/Nuntius/Generated
 
 export DEVELOPER_DIR="$XCODE/Contents/Developer"
 export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+export IPHONEOS_DEPLOYMENT_TARGET=18.6
 
 echo "SDK: $SDKROOT"
 
