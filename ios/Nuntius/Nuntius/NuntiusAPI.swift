@@ -41,6 +41,10 @@ private class SendCallbackBridge: SendCallback {
 }
 
 private class ReceiveCallbackBridge: ReceiveCallback {
+    func onProgress(bytesReceived: UInt64, totalBytes: UInt64) {
+        
+    }
+
     private let continuation: CheckedContinuation<String, Error>
 
     init(_ continuation: CheckedContinuation<String, Error>) {

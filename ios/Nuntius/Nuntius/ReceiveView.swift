@@ -11,6 +11,8 @@ import UIKit
 struct ReceiveView: View {
     @State private var hashText: String = ""
     @State private var isFetching: Bool = false
+    @State private var downloadProgress: Double = 0
+    @State private var downloadTotal: Double = 0
     @State private var receivedFile: ReceivedFile? = nil
     @State private var showShareSheet: Bool = false
 
@@ -103,23 +105,48 @@ struct ReceiveView: View {
             .frame(maxHeight: .infinity)
             .padding(.horizontal, 24)
 
-            Button(action: fetchFile) {
-                HStack(spacing: 10) {
-                    if isFetching {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                            .tint(Color(hex: "006413"))
+            if isFetching && downloadTotal > 0 {
+                VStack(spacing: 0) {
+                    HStack(spacing: 8) {
+                        ProgressView(value: downloadProgress, total: downloadTotal)
+                            .progressViewStyle(.linear)
+                            .tint(Color(hex: "9cff93"))
+                        Text(receiveProgressLabel)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(Color(hex: "b2a7b9"))
+                            .fixedSize()
                     }
-                    Text(isFetching ? "FETCHING..." : "FETCH")
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .background(Color(hex: "1e1626"))
+
+                    Text("DOWNLOADING...")
                         .font(.spaceBold(14))
                         .kerning(3)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 22)
+                        .background(Color(hex: "9cff93").opacity(0.15))
+                        .foregroundColor(Color(hex: "4d9c4d"))
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 22)
-                .background(hashText.isEmpty ? Color(hex: "1e1626") : Color(hex: "9cff93"))
-                .foregroundColor(hashText.isEmpty ? Color(hex: "4d4553") : Color(hex: "006413"))
+            } else {
+                Button(action: fetchFile) {
+                    HStack(spacing: 10) {
+                        if isFetching {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(Color(hex: "006413"))
+                        }
+                        Text(isFetching ? "CONNECTING..." : "FETCH")
+                            .font(.spaceBold(14))
+                            .kerning(3)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 22)
+                    .background(hashText.isEmpty ? Color(hex: "1e1626") : Color(hex: "9cff93"))
+                    .foregroundColor(hashText.isEmpty ? Color(hex: "4d4553") : Color(hex: "006413"))
+                }
+                .disabled(hashText.isEmpty || isFetching)
             }
-            .disabled(hashText.isEmpty || isFetching)
         }
     }
 
@@ -297,6 +324,12 @@ struct ReceiveView: View {
             .kerning(2.5)
     }
 
+    private var receiveProgressLabel: String {
+        ByteCountFormatter.string(fromByteCount: Int64(downloadProgress), countStyle: .file)
+            + " / "
+            + ByteCountFormatter.string(fromByteCount: Int64(downloadTotal), countStyle: .file)
+    }
+
     // MARK: - Actions
 
     private func paste() {
@@ -309,28 +342,61 @@ struct ReceiveView: View {
     private func fetchFile() {
         guard !hashText.isEmpty else { return }
         isFetching = true
-        Task {
-            let dest = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            do {
-                let name = try await receiveFile(ticket: hashText, destDir: dest.path)
+        downloadProgress = 0
+        downloadTotal = 0
+
+        let dest = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let callback = ReceiveProgressCallbackImpl(
+            onProgress: { received, total in
+                DispatchQueue.main.async {
+                    downloadProgress = Double(received)
+                    downloadTotal = Double(total)
+                }
+            },
+            onDone: { name in
                 let fileURL = dest.appendingPathComponent(name)
                 let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
                 let bytes = attrs?[.size] as? Int64 ?? 0
                 let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
-                await MainActor.run {
+                DispatchQueue.main.async {
                     isFetching = false
                     receivedFile = ReceivedFile(name: name, size: size, url: fileURL)
                 }
-            } catch {
-                await MainActor.run { isFetching = false }
+            },
+            onError: { _ in
+                DispatchQueue.main.async { isFetching = false }
             }
-        }
+        )
+        receiveFile(ticket: hashText, destDir: dest.path, callback: callback)
     }
 
     private func reset() {
         receivedFile = nil
         hashText = ""
+        downloadProgress = 0
+        downloadTotal = 0
     }
+}
+
+/// Bridges the uniffi ReceiveCallback protocol to Swift closures.
+private class ReceiveProgressCallbackImpl: ReceiveCallback {
+    private let onProgressHandler: (UInt64, UInt64) -> Void
+    private let onDoneHandler: (String) -> Void
+    private let onErrorHandler: (String) -> Void
+
+    init(
+        onProgress: @escaping (UInt64, UInt64) -> Void,
+        onDone: @escaping (String) -> Void,
+        onError: @escaping (String) -> Void
+    ) {
+        self.onProgressHandler = onProgress
+        self.onDoneHandler = onDone
+        self.onErrorHandler = onError
+    }
+
+    func onProgress(bytesReceived: UInt64, totalBytes: UInt64) { onProgressHandler(bytesReceived, totalBytes) }
+    func onDone(name: String) { onDoneHandler(name) }
+    func onError(msg: String) { onErrorHandler(msg) }
 }
 
 /// UIActivityViewController wrapper for SwiftUI

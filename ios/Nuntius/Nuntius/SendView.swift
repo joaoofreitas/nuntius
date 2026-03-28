@@ -19,6 +19,9 @@ struct SendView: View {
     @State private var sendHandle: SendHandle? = nil
     @State private var errorMessage: String? = nil
     @State private var didSend: Bool = false
+    @State private var receiverConnected: Bool = false
+    @State private var sendProgress: Double = 0
+    @State private var sendTotal: Double = 0
 
     var body: some View {
         ZStack {
@@ -139,29 +142,59 @@ struct SendView: View {
 
             if blobHash.isEmpty {
                 preparingView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 readyView
             }
-
-            Spacer()
         }
     }
 
     private var preparingView: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            fileMetaBlock.padding(.horizontal, 24)
+        VStack(spacing: 0) {
+            Spacer()
 
-            VStack(alignment: .leading, spacing: 12) {
-                sectionLabel("PREPARING").padding(.horizontal, 24)
-                ProgressView()
-                    .progressViewStyle(.linear)
-                    .tint(Color(hex: "9cff93"))
-                    .padding(.horizontal, 24)
-                Text("Importing file and starting P2P node...")
-                    .font(.manrope(13))
-                    .foregroundColor(Color(hex: "9b8faa"))
-                    .padding(.horizontal, 24)
+            ZStack {
+                Rectangle()
+                    .fill(Color(hex: "9cff93").opacity(0.06))
+                    .frame(width: 120, height: 120)
+                    .blur(radius: 24)
+                ZStack {
+                    Color(hex: "2b2234")
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(Color(hex: "9cff93"))
+                        .scaleEffect(1.4)
+                }
+                .frame(width: 108, height: 108)
+                .overlay(Rectangle().stroke(Color(hex: "9cff93").opacity(0.15), lineWidth: 1))
             }
+            .padding(.bottom, 28)
+
+            Text("PREPARING")
+                .font(.spaceBold(36))
+                .foregroundColor(Color(hex: "f4e7f9"))
+                .tracking(-1)
+                .padding(.bottom, 10)
+
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color(hex: "9cff93").opacity(0.5))
+                    .frame(width: 5, height: 5)
+                Text("Importing file and starting P2P node")
+                    .font(.manrope(12))
+                    .foregroundColor(Color(hex: "b2a7b9"))
+                    .kerning(0.5)
+            }
+            .padding(.bottom, 32)
+
+            Text(fileName)
+                .font(.system(size: 13, design: .monospaced))
+                .foregroundColor(Color(hex: "4d4553"))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .padding(.horizontal, 40)
+
+            Spacer()
         }
     }
 
@@ -170,16 +203,44 @@ struct SendView: View {
             VStack(alignment: .leading, spacing: 28) {
                 fileMetaBlock
 
-                HStack(alignment: .top, spacing: 12) {
-                    Rectangle()
-                        .fill(Color(hex: "9cff93").opacity(0.4))
-                        .frame(width: 2)
-                    Text("Keep Nuntius open while the receiver downloads. Switching tabs is fine.")
-                        .font(.manrope(13))
-                        .foregroundColor(Color(hex: "9b8faa"))
-                        .lineSpacing(4)
+                // Receiver status / progress block
+                if receiverConnected && sendTotal > 0 {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(Color(hex: "9cff93"))
+                                .frame(width: 5, height: 5)
+                            sectionLabel("TRANSFERRING")
+                            Spacer()
+                            Text(progressLabel(sent: sendProgress, total: sendTotal))
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(Color(hex: "b2a7b9"))
+                        }
+                        ProgressView(value: sendProgress, total: sendTotal)
+                            .progressViewStyle(.linear)
+                            .tint(Color(hex: "9cff93"))
+                    }
+                } else if receiverConnected {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(Color(hex: "9cff93"))
+                            .frame(width: 5, height: 5)
+                        Text("Receiver connected")
+                            .font(.manrope(13))
+                            .foregroundColor(Color(hex: "9b8faa"))
+                    }
+                } else {
+                    HStack(alignment: .top, spacing: 12) {
+                        Rectangle()
+                            .fill(Color(hex: "9cff93").opacity(0.4))
+                            .frame(width: 2)
+                        Text("Keep Nuntius open while the receiver downloads. Switching tabs is fine.")
+                            .font(.manrope(13))
+                            .foregroundColor(Color(hex: "9b8faa"))
+                            .lineSpacing(4)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-                .fixedSize(horizontal: false, vertical: true)
 
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -212,6 +273,12 @@ struct SendView: View {
             }
             .padding(.horizontal, 24)
         }
+    }
+
+    private func progressLabel(sent: Double, total: Double) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(sent), countStyle: .file)
+            + " / "
+            + ByteCountFormatter.string(fromByteCount: Int64(total), countStyle: .file)
     }
 
     // MARK: - Sent
@@ -413,13 +480,24 @@ struct SendView: View {
                     sendHandle = handle
                     if accessing { url.stopAccessingSecurityScopedResource() }
                 }
-                handle.onDownloaded(callback: TransferDoneCallback {
-                    DispatchQueue.main.async {
-                        didSend = true
-                        sendHandle?.stop()
-                        sendHandle = nil
+                handle.onSendProgress(callback: SendProgressCallbackImpl(
+                    onConnected: {
+                        DispatchQueue.main.async { receiverConnected = true }
+                    },
+                    onProgress: { sent, total in
+                        DispatchQueue.main.async {
+                            sendProgress = Double(sent)
+                            sendTotal = Double(total)
+                        }
+                    },
+                    onDone: {
+                        DispatchQueue.main.async {
+                            didSend = true
+                            sendHandle?.stop()
+                            sendHandle = nil
+                        }
                     }
-                })
+                ))
             } catch {
                 await MainActor.run {
                     isSending = false
@@ -435,6 +513,9 @@ struct SendView: View {
         sendHandle = nil
         isSending = false
         blobHash = ""
+        receiverConnected = false
+        sendProgress = 0
+        sendTotal = 0
     }
 
     private func resetSend() {
@@ -445,20 +526,31 @@ struct SendView: View {
         fileSize = ""
         fileURL = nil
         sendHandle = nil
+        receiverConnected = false
+        sendProgress = 0
+        sendTotal = 0
     }
 }
 
-/// Bridges the uniffi DownloadedCallback protocol to a Swift closure.
-private class TransferDoneCallback: DownloadedCallback {
-    private let handler: () -> Void
+/// Bridges the uniffi SendProgressCallback protocol to Swift closures.
+private class SendProgressCallbackImpl: SendProgressCallback {
+    private let onConnectedHandler: () -> Void
+    private let onProgressHandler: (UInt64, UInt64) -> Void
+    private let onDoneHandler: () -> Void
 
-    init(_ handler: @escaping () -> Void) {
-        self.handler = handler
+    init(
+        onConnected: @escaping () -> Void,
+        onProgress: @escaping (UInt64, UInt64) -> Void,
+        onDone: @escaping () -> Void
+    ) {
+        self.onConnectedHandler = onConnected
+        self.onProgressHandler = onProgress
+        self.onDoneHandler = onDone
     }
 
-    func onDownloaded() {
-        handler()
-    }
+    func onReceiverConnected() { onConnectedHandler() }
+    func onProgress(bytesSent: UInt64, totalBytes: UInt64) { onProgressHandler(bytesSent, totalBytes) }
+    func onDone() { onDoneHandler() }
 }
 
 #Preview {
