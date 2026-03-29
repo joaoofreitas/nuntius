@@ -1,0 +1,11 @@
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/aarch64-apple-ios/release/deps/ed25519-0ff00f65260ad994.d: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/hex.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/pkcs8.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/serde.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/../README.md
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/aarch64-apple-ios/release/deps/libed25519-0ff00f65260ad994.rlib: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/hex.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/pkcs8.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/serde.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/../README.md
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/aarch64-apple-ios/release/deps/libed25519-0ff00f65260ad994.rmeta: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/hex.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/pkcs8.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/serde.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/../README.md
+
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/lib.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/hex.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/pkcs8.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/serde.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ed25519-3.0.0-rc.4/src/../README.md:

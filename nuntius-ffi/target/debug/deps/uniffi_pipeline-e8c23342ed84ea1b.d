@@ -1,0 +1,10 @@
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/uniffi_pipeline-e8c23342ed84ea1b.d: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/node.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/pipeline.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/value.rs
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/libuniffi_pipeline-e8c23342ed84ea1b.rlib: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/node.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/pipeline.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/value.rs
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/libuniffi_pipeline-e8c23342ed84ea1b.rmeta: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/node.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/pipeline.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/value.rs
+
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/lib.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/node.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/pipeline.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uniffi_pipeline-0.29.5/src/value.rs:

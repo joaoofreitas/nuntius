@@ -1,0 +1,14 @@
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/release/deps/serde-cd32d04ae8aea628.d: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/release/build/serde-eca54499262bd750/out/private.rs
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/release/deps/libserde-cd32d04ae8aea628.rlib: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/release/build/serde-eca54499262bd750/out/private.rs
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/release/deps/libserde-cd32d04ae8aea628.rmeta: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/release/build/serde-eca54499262bd750/out/private.rs
+
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/release/build/serde-eca54499262bd750/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/release/build/serde-eca54499262bd750/out

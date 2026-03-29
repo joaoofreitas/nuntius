@@ -1,0 +1,13 @@
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/toml-86fbf9c62733cb26.d: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/map.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/value.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/datetime.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/ser.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/de.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/tokens.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/macros.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/spanned.rs
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/libtoml-86fbf9c62733cb26.rmeta: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/map.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/value.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/datetime.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/ser.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/de.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/tokens.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/macros.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/spanned.rs
+
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/lib.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/map.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/value.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/datetime.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/ser.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/de.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/tokens.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/macros.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/toml-0.5.11/src/spanned.rs:

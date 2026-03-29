@@ -1,0 +1,10 @@
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/iroh_metrics-c6b94e09befa454f.d: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/base.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/encoding.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/iterable.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/metrics.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/registry.rs
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/libiroh_metrics-c6b94e09befa454f.rmeta: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/base.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/encoding.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/iterable.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/metrics.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/registry.rs
+
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/lib.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/base.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/encoding.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/iterable.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/metrics.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/iroh-metrics-0.38.3/src/registry.rs:
