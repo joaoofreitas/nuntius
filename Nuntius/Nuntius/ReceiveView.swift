@@ -8,19 +8,43 @@
 import SwiftUI
 import UIKit
 
+/// The Receive tab. Accepts an iroh blob ticket, fetches the files directly
+/// from the sender's device, and offers a system share sheet to save them.
 struct ReceiveView: View {
+
+    /// The ticket string typed or pasted by the user.
     @State private var hashText: String = ""
+
+    /// True while a P2P connection is being established or files are downloading.
     @State private var isFetching: Bool = false
+
+    /// Bytes received so far in the current download.
     @State private var downloadProgress: Double = 0
+
+    /// Total expected bytes for the current download.
     @State private var downloadTotal: Double = 0
+
+    /// Non-nil once a transfer completes successfully, triggering the received state.
     @State private var receivedFile: ReceivedFile? = nil
+
+    /// True while the system share/save sheet is presented.
     @State private var showShareSheet: Bool = false
 
+    // MARK: - Nested types
+
+    /// Metadata for a successfully received file set.
     struct ReceivedFile {
+
+        /// The filenames of each received file, relative to the destination directory.
         let names: [String]
+
+        /// Human-readable total size of the received files, e.g. "4.2 MB".
         let totalSize: String
+
+        /// Absolute file URLs for all received files, used by the share sheet.
         let urls: [URL]
 
+        /// A single filename for one file, or a count string for multiple files.
         var displayTitle: String {
             names.count == 1 ? names[0] : "\(names.count) files"
         }
@@ -37,8 +61,9 @@ struct ReceiveView: View {
         }
     }
 
-    // MARK: - Fetch Init
+    // MARK: - Fetch init state
 
+    /// The initial view. Shows the ticket input field and Fetch button.
     private var fetchInitView: some View {
         VStack(spacing: 0) {
             appHeader
@@ -154,11 +179,11 @@ struct ReceiveView: View {
         }
     }
 
-    // MARK: - File Received
+    // MARK: - File received state
 
-    /// Builds the full-screen success state after a transfer completes
-    /// @param file The received file(s) metadata
-    /// @returns A centered success view with file list and save action
+    /// Builds the success state shown after a transfer completes.
+    /// @param file The received file(s) metadata including names, size, and URLs.
+    /// @returns A centered success view with a file list and a save action button.
     private func fileReceivedView(_ file: ReceivedFile) -> some View {
         VStack(spacing: 0) {
             appHeader
@@ -198,7 +223,6 @@ struct ReceiveView: View {
             }
             .padding(.bottom, 40)
 
-            // File list card
             VStack(spacing: 0) {
                 ForEach(Array(file.names.enumerated()), id: \.offset) { index, name in
                     HStack(spacing: 16) {
@@ -231,9 +255,7 @@ struct ReceiveView: View {
                 }
             }
             .background(Color(hex: "1e1626"))
-            .overlay(
-                Rectangle().stroke(Color(hex: "9cff93").opacity(0.12), lineWidth: 1)
-            )
+            .overlay(Rectangle().stroke(Color(hex: "9cff93").opacity(0.12), lineWidth: 1))
             .padding(.horizontal, 24)
 
             Spacer()
@@ -290,8 +312,9 @@ struct ReceiveView: View {
         }
     }
 
-    // MARK: - Shared
+    // MARK: - Shared components
 
+    /// The branded app header shown at the top of every state in ReceiveView.
     private var appHeader: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center) {
@@ -317,9 +340,9 @@ struct ReceiveView: View {
         }
     }
 
-    /// Uppercase section label in monospaced style
-    /// @param title The label text
-    /// @returns A styled label for section headings
+    /// Builds an uppercase section label.
+    /// @param title The label text to display.
+    /// @returns A styled Text view for section headings.
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
             .font(.spaceBold(10))
@@ -327,6 +350,7 @@ struct ReceiveView: View {
             .kerning(2.5)
     }
 
+    /// A formatted string showing bytes received vs total, e.g. "1.2 MB / 4.8 MB".
     private var receiveProgressLabel: String {
         ByteCountFormatter.string(fromByteCount: Int64(downloadProgress), countStyle: .file)
             + " / "
@@ -335,13 +359,15 @@ struct ReceiveView: View {
 
     // MARK: - Actions
 
+    /// Reads the system clipboard and places its text into the hash input field.
     private func paste() {
         if let text = UIPasteboard.general.string {
             hashText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }
 
-    /// Initiate a P2P fetch for the provided blob hash
+    /// Initiates a P2P download using the ticket in hashText.
+    /// Saves received files to the app's Documents directory.
     private func fetchFile() {
         guard !hashText.isEmpty else { return }
         isFetching = true
@@ -375,6 +401,7 @@ struct ReceiveView: View {
         receiveFile(ticket: hashText, destDir: dest.path, callback: callback)
     }
 
+    /// Resets all state back to the initial ticket input screen.
     private func reset() {
         receivedFile = nil
         hashText = ""
@@ -383,12 +410,24 @@ struct ReceiveView: View {
     }
 }
 
-/// Bridges the uniffi ReceiveCallback protocol to Swift closures.
+// MARK: - Callback bridge
+
+/// Bridges the uniffi ReceiveCallback protocol to Swift closures,
+/// forwarding download progress, completion, and error events.
 private class ReceiveProgressCallbackImpl: ReceiveCallback {
+
+    /// Called periodically with bytes received and total expected bytes.
     private let onProgressHandler: (UInt64, UInt64) -> Void
+
+    /// Called when all files have been successfully written to disk.
     private let onDoneHandler: ([String]) -> Void
+
+    /// Called when a fatal error occurs during the transfer.
     private let onErrorHandler: (String) -> Void
 
+    /// @param onProgress Closure invoked with (bytesReceived, totalBytes) during download.
+    /// @param onDone Closure invoked with the list of saved filenames on success.
+    /// @param onError Closure invoked with an error message on failure.
     init(
         onProgress: @escaping (UInt64, UInt64) -> Void,
         onDone: @escaping ([String]) -> Void,
@@ -404,15 +443,24 @@ private class ReceiveProgressCallbackImpl: ReceiveCallback {
     func onError(msg: String) { onErrorHandler(msg) }
 }
 
-/// UIActivityViewController wrapper for SwiftUI — supports sharing multiple files
-/// @param urls The file URLs to share/save
+// MARK: - Activity view controller
+
+/// A UIViewControllerRepresentable wrapper around UIActivityViewController.
+/// Used to present the system share/save sheet for received files.
 private struct ActivityViewController: UIViewControllerRepresentable {
+
+    /// The file URLs to offer for sharing or saving.
     let urls: [URL]
 
+    /// @param context The representable context provided by SwiftUI.
+    /// @returns A UIActivityViewController configured with the file URLs.
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: urls, applicationActivities: nil)
     }
 
+    /// No updates needed after initial creation.
+    /// @param uiViewController The existing view controller instance.
+    /// @param context The representable context provided by SwiftUI.
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 

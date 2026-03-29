@@ -10,23 +10,57 @@ import UIKit
 import UniformTypeIdentifiers
 import PhotosUI
 
+/// The Send tab. Allows the user to select files from Photos or Files,
+/// start an iroh P2P session, and share the resulting ticket with a receiver.
 struct SendView: View {
-    @EnvironmentObject private var GooNicappState: AppState
+
+    /// Shared application state used to receive files from the Share Extension.
+    @EnvironmentObject private var appState: AppState
+
+    /// The files the user has selected to send.
     @State private var selectedURLs: [URL] = []
+
+    /// Human-readable total size of the selected files, e.g. "3.2 MB".
     @State private var totalSize: String = ""
+
+    /// The iroh blob ticket to share with the receiver. Empty until the node is ready.
     @State private var blobHash: String = ""
+
+    /// True while the P2P node is starting or an active transfer is in progress.
     @State private var isSending: Bool = false
+
+    /// True while the source picker action sheet is presented.
     @State private var showSourceChoice: Bool = false
+
+    /// True while the Files document picker is presented.
     @State private var showFilePicker: Bool = false
+
+    /// True while the Photos picker is presented.
     @State private var showPhotoPicker: Bool = false
+
+    /// The items selected from the Photos picker, before they are loaded as Data.
     @State private var photoPickerItems: [PhotosPickerItem] = []
+
+    /// The active iroh send session. Non-nil while a transfer is in progress.
     @State private var sendHandle: SendHandle? = nil
+
+    /// A non-nil error message causes an alert to be shown.
     @State private var errorMessage: String? = nil
+
+    /// True once the receiver has successfully downloaded all files.
     @State private var didSend: Bool = false
+
+    /// True once the receiver has connected to the local iroh node.
     @State private var receiverConnected: Bool = false
+
+    /// Bytes sent so far in the current transfer.
     @State private var sendProgress: Double = 0
+
+    /// Total bytes to send in the current transfer.
     @State private var sendTotal: Double = 0
 
+    /// A display title derived from the selected files.
+    /// Shows the filename for a single file, or a count for multiple.
     private var selectionTitle: String {
         switch selectedURLs.count {
         case 0: return ""
@@ -69,15 +103,15 @@ struct SendView: View {
             Button("Cancel", role: .cancel) {}
         }
         .onAppear {
-            let urls = GooNicappState.pendingShareURLs
+            let urls = appState.pendingShareURLs
             if !urls.isEmpty {
-                GooNicappState.pendingShareURLs = []
+                appState.pendingShareURLs = []
                 addURLs(urls)
             }
         }
-        .onChange(of: GooNicappState.pendingShareURLs) { urls in
+        .onChange(of: appState.pendingShareURLs) { urls in
             guard !urls.isEmpty else { return }
-            GooNicappState.pendingShareURLs = []
+            appState.pendingShareURLs = []
             addURLs(urls)
         }
         .alert("Error", isPresented: Binding(
@@ -90,8 +124,9 @@ struct SendView: View {
         }
     }
 
-    // MARK: - Init
+    // MARK: - Init state
 
+    /// The initial view before a transfer starts. Shows the file drop zone and Send button.
     private var initView: some View {
         VStack(spacing: 0) {
             appHeader(onDismiss: nil)
@@ -120,6 +155,8 @@ struct SendView: View {
         }
     }
 
+    /// An interactive file selection area. Tapping opens the source picker.
+    /// Displays file name(s) and size once files are selected.
     private var dropZone: some View {
         Button(action: { showSourceChoice = true }) {
             VStack(spacing: 18) {
@@ -197,6 +234,7 @@ struct SendView: View {
         .buttonStyle(.plain)
     }
 
+    /// The SF Symbol icon shown in the drop zone, reflecting the current selection state.
     private var dropZoneIcon: String {
         switch selectedURLs.count {
         case 0: return "arrow.up.doc"
@@ -205,8 +243,10 @@ struct SendView: View {
         }
     }
 
-    // MARK: - Transfer
+    // MARK: - Transfer state
 
+    /// Shown while the P2P node is starting or a transfer is active.
+    /// Switches between a preparing spinner and the ready/ticket view.
     private var transferView: some View {
         VStack(alignment: .leading, spacing: 0) {
             appHeader(onDismiss: cancelSend)
@@ -220,6 +260,7 @@ struct SendView: View {
         }
     }
 
+    /// Shown while the iroh node is starting and the ticket is not yet available.
     private var preparingView: some View {
         VStack(spacing: 0) {
             Spacer()
@@ -269,6 +310,8 @@ struct SendView: View {
         }
     }
 
+    /// Shown once the iroh node is ready and the ticket is available to share.
+    /// Also shows live transfer progress once the receiver connects.
     private var readyView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
@@ -345,6 +388,7 @@ struct SendView: View {
         }
     }
 
+    /// A small block showing the selected file name(s) and total size during transfer.
     private var fileMetaBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(selectionTitle)
@@ -359,8 +403,9 @@ struct SendView: View {
         }
     }
 
-    // MARK: - Sent
+    // MARK: - Sent state
 
+    /// Shown after the receiver has successfully downloaded all files.
     private var sentView: some View {
         VStack(spacing: 0) {
             appHeader(onDismiss: nil)
@@ -459,16 +504,21 @@ struct SendView: View {
         }
     }
 
-    // MARK: - Shared Components
+    // MARK: - Shared components
 
+    /// Formats a byte progress pair as a human-readable string, e.g. "1.2 MB / 4.8 MB".
+    /// @param sent Bytes transferred so far.
+    /// @param total Total bytes to transfer.
+    /// @returns A formatted progress string.
     private func progressLabel(sent: Double, total: Double) -> String {
         ByteCountFormatter.string(fromByteCount: Int64(sent), countStyle: .file)
             + " / "
             + ByteCountFormatter.string(fromByteCount: Int64(total), countStyle: .file)
     }
 
-    /// @param onDismiss Action for the X button, or nil to hide it
-    /// @returns A styled header with NUNTIUS branding
+    /// Builds the branded app header shown at the top of every state.
+    /// @param onDismiss An optional action for the X dismiss button. Pass nil to hide the button.
+    /// @returns A styled header with the Nuntius branding and an optional dismiss button.
     private func appHeader(onDismiss: (() -> Void)?) -> some View {
         VStack(spacing: 0) {
             HStack(alignment: .center) {
@@ -504,6 +554,9 @@ struct SendView: View {
         }
     }
 
+    /// Builds an uppercase section label.
+    /// @param title The label text to display.
+    /// @returns A styled Text view for section headings.
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
             .font(.spaceBold(10))
@@ -511,6 +564,11 @@ struct SendView: View {
             .kerning(2.5)
     }
 
+    /// Builds a full-width primary action button.
+    /// @param label The uppercase button label.
+    /// @param active When true, the button renders in the active green style; otherwise muted.
+    /// @param action The closure to invoke when tapped.
+    /// @returns A styled full-width button.
     private func primaryButton(label: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
@@ -523,16 +581,19 @@ struct SendView: View {
         }
     }
 
-    // MARK: - File selection helpers
+    // MARK: - File selection
 
-    /// Adds file picker URLs and recalculates total size.
+    /// Replaces the current selection with the given URLs and recalculates the total size.
+    /// @param urls The file URLs to set as the current selection.
     private func addURLs(_ urls: [URL]) {
         selectedURLs = urls
         errorMessage = nil
         recalcTotalSize()
     }
 
-    /// Loads photo items from the photos picker and copies them to temp storage.
+    /// Loads raw data from Photos picker items, writes them to the temp directory,
+    /// then updates the selection with the resulting URLs.
+    /// @param items The PhotosPickerItems selected by the user.
     private func loadPhotoItems(_ items: [PhotosPickerItem]) {
         guard !items.isEmpty else { return }
         Task {
@@ -555,6 +616,7 @@ struct SendView: View {
         }
     }
 
+    /// Reads file sizes from disk for all selected URLs and updates the totalSize label.
     private func recalcTotalSize() {
         let bytes = selectedURLs.reduce(Int64(0)) { sum, url in
             let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
@@ -565,6 +627,8 @@ struct SendView: View {
 
     // MARK: - Actions
 
+    /// Starts the iroh P2P send session for the currently selected files.
+    /// Requests security-scoped access, calls the FFI, and wires up progress callbacks.
     private func startSending() {
         guard !selectedURLs.isEmpty else { return }
         isSending = true
@@ -614,6 +678,7 @@ struct SendView: View {
         }
     }
 
+    /// Stops the active send session and resets transfer state, returning to the ready view.
     private func cancelSend() {
         sendHandle?.stop()
         sendHandle = nil
@@ -624,6 +689,7 @@ struct SendView: View {
         sendTotal = 0
     }
 
+    /// Resets all state back to the initial file selection screen.
     private func resetSend() {
         didSend = false
         isSending = false
@@ -637,12 +703,24 @@ struct SendView: View {
     }
 }
 
-/// Bridges the uniffi SendProgressCallback protocol to Swift closures.
+// MARK: - Callback bridge
+
+/// Bridges the uniffi SendProgressCallback protocol to Swift closures,
+/// forwarding receiver connection, progress, and completion events.
 private class SendProgressCallbackImpl: SendProgressCallback {
+
+    /// Called when the receiver first connects to the iroh node.
     private let onConnectedHandler: () -> Void
+
+    /// Called periodically with bytes sent and total bytes.
     private let onProgressHandler: (UInt64, UInt64) -> Void
+
+    /// Called when the receiver has finished downloading all files.
     private let onDoneHandler: () -> Void
 
+    /// @param onConnected Closure invoked when the receiver connects.
+    /// @param onProgress Closure invoked with (bytesSent, totalBytes) during transfer.
+    /// @param onDone Closure invoked when the transfer completes successfully.
     init(
         onConnected: @escaping () -> Void,
         onProgress: @escaping (UInt64, UInt64) -> Void,
@@ -660,4 +738,5 @@ private class SendProgressCallbackImpl: SendProgressCallback {
 
 #Preview {
     SendView()
+        .environmentObject(AppState())
 }

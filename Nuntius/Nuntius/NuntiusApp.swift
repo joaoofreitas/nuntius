@@ -10,17 +10,24 @@ import Combine
 import CoreText
 import UIKit
 
-/// Shared observable state passed through the environment.
+/// Shared observable state passed through the SwiftUI environment.
+/// Coordinates data between the Share Extension and the main app.
 class AppState: ObservableObject {
+
+    /// File URLs queued by the Share Extension, waiting to be loaded into SendView.
     @Published var pendingShareURLs: [URL] = []
+
+    /// The currently selected bottom tab. 0 = Send, 1 = Receive.
     @Published var activeTab: Int = 0
 
+    /// The App Group identifier shared between the main app and the Share Extension.
     private static let appGroupID = "group.com.github.joaoofreitas.Nuntius"
+
+    /// The UserDefaults key under which the Share Extension stores pending file paths.
     private static let pendingPathsKey = "pendingFilePaths"
 
-    /// Reads any files the Share Extension wrote to the App Group container.
-    /// Clears the stored paths after reading them.
-    /// @returns File URLs ready to pass to SendView, or empty if none pending.
+    /// Reads file paths the Share Extension stored in the App Group container and clears them.
+    /// @returns File URLs ready to pass to SendView, or an empty array if none are pending.
     func consumePendingSharedFiles() -> [URL] {
         let defaults = UserDefaults(suiteName: Self.appGroupID)
         guard let paths = defaults?.stringArray(forKey: Self.pendingPathsKey),
@@ -32,8 +39,11 @@ class AppState: ObservableObject {
     }
 }
 
+/// Application entry point. Registers custom fonts and injects AppState into the environment.
 @main
 struct NuntiusApp: App {
+
+    /// Shared application state passed down through the environment.
     @StateObject private var appState = AppState()
 
     init() {
@@ -54,6 +64,7 @@ struct NuntiusApp: App {
         }
     }
 
+    /// Reads any files queued by the Share Extension and routes the app to the Send tab.
     private func loadPendingSharedFiles() {
         let urls = appState.consumePendingSharedFiles()
         guard !urls.isEmpty else { return }
@@ -62,7 +73,7 @@ struct NuntiusApp: App {
     }
 
     /// Registers all custom fonts from the app bundle at startup.
-    /// Required because fonts in a bundle subdirectory are not found by UIAppFonts automatically.
+    /// Required because fonts inside a bundle subdirectory are not picked up by UIAppFonts automatically.
     private func registerFonts() {
         let fontNames = [
             "SpaceGrotesk-Light",

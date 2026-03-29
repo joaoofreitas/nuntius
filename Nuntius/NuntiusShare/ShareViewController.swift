@@ -8,15 +8,20 @@
 import UIKit
 import UniformTypeIdentifiers
 
-/// Share Extension entry point. Receives shared files from Files/Photos app,
-/// copies them to the App Group container, stores paths in shared UserDefaults,
+/// Share Extension entry point. Receives shared files from the Files or Photos app,
+/// copies them into the App Group shared container, stores their paths in UserDefaults,
 /// then opens the main Nuntius app via the nuntius:// URL scheme.
 class ShareViewController: UIViewController {
+
+    /// The App Group identifier shared between the extension and the main app.
     private static let appGroupID = "group.com.github.joaoofreitas.Nuntius"
+
+    /// The UserDefaults key under which pending file paths are stored for the main app.
     private static let pendingPathsKey = "pendingFilePaths"
 
     // MARK: - UI
 
+    /// Status label shown while files are being copied to the shared container.
     private let statusLabel: UILabel = {
         let label = UILabel()
         label.text = "Preparing for Nuntius..."
@@ -27,6 +32,7 @@ class ShareViewController: UIViewController {
         return label
     }()
 
+    /// Activity spinner shown while the extension is processing shared items.
     private let spinner: UIActivityIndicatorView = {
         let view = UIActivityIndicatorView(style: .large)
         view.color = UIColor(red: 0.61, green: 1.0, blue: 0.58, alpha: 1)
@@ -60,6 +66,9 @@ class ShareViewController: UIViewController {
 
     // MARK: - Processing
 
+    /// Reads all NSItemProvider attachments, copies each file into a unique session directory
+    /// inside the App Group container, stores the resulting paths in UserDefaults,
+    /// then opens the main app.
     private func processSharedItems() {
         guard
             let items = extensionContext?.inputItems as? [NSExtensionItem],
@@ -114,12 +123,12 @@ class ShareViewController: UIViewController {
         }
     }
 
+    /// Opens the main Nuntius app by walking the UIResponder chain to reach the host
+    /// application's UIApplication instance. This is more reliable than extensionContext?.open()
+    /// for Share Extensions on modern iOS, where that API does not consistently foreground the app.
     private func openMainApp() {
         guard let appURL = URL(string: "nuntius://share") else { finish(); return }
 
-        // extensionContext?.open() does not reliably bring the host app to foreground
-        // from a Share Extension. Instead, walk the responder chain to reach the host
-        // app's UIApplication instance and call open directly.
         var responder: UIResponder? = self
         while let r = responder {
             if let application = r as? UIApplication {
@@ -132,6 +141,7 @@ class ShareViewController: UIViewController {
         finish()
     }
 
+    /// Completes the extension request and dismisses the share sheet.
     private func finish() {
         extensionContext?.completeRequest(returningItems: nil)
     }
