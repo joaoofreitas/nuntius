@@ -6,10 +6,36 @@
 //
 
 import SwiftUI
+import Combine
 import CoreText
+import UIKit
+
+/// Shared observable state passed through the environment.
+class AppState: ObservableObject {
+    @Published var pendingShareURLs: [URL] = []
+    @Published var activeTab: Int = 0
+
+    private static let appGroupID = "group.com.github.joaoofreitas.Nuntius"
+    private static let pendingPathsKey = "pendingFilePaths"
+
+    /// Reads any files the Share Extension wrote to the App Group container.
+    /// Clears the stored paths after reading them.
+    /// @returns File URLs ready to pass to SendView, or empty if none pending.
+    func consumePendingSharedFiles() -> [URL] {
+        let defaults = UserDefaults(suiteName: Self.appGroupID)
+        guard let paths = defaults?.stringArray(forKey: Self.pendingPathsKey),
+              !paths.isEmpty
+        else { return [] }
+        defaults?.removeObject(forKey: Self.pendingPathsKey)
+        defaults?.synchronize()
+        return paths.map { URL(fileURLWithPath: $0) }
+    }
+}
 
 @main
 struct NuntiusApp: App {
+    @StateObject private var appState = AppState()
+
     init() {
         registerFonts()
     }
@@ -17,7 +43,22 @@ struct NuntiusApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(appState)
+                .onOpenURL { url in
+                    guard url.scheme == "nuntius" else { return }
+                    loadPendingSharedFiles()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    loadPendingSharedFiles()
+                }
         }
+    }
+
+    private func loadPendingSharedFiles() {
+        let urls = appState.consumePendingSharedFiles()
+        guard !urls.isEmpty else { return }
+        appState.pendingShareURLs = urls
+        appState.activeTab = 0
     }
 
     /// Registers all custom fonts from the app bundle at startup.

@@ -11,6 +11,7 @@ import UniformTypeIdentifiers
 import PhotosUI
 
 struct SendView: View {
+    @EnvironmentObject private var GooNicappState: AppState
     @State private var selectedURLs: [URL] = []
     @State private var totalSize: String = ""
     @State private var blobHash: String = ""
@@ -66,6 +67,18 @@ struct SendView: View {
             Button("Photos & Videos") { showPhotoPicker = true }
             Button("Files") { showFilePicker = true }
             Button("Cancel", role: .cancel) {}
+        }
+        .onAppear {
+            let urls = GooNicappState.pendingShareURLs
+            if !urls.isEmpty {
+                GooNicappState.pendingShareURLs = []
+                addURLs(urls)
+            }
+        }
+        .onChange(of: GooNicappState.pendingShareURLs) { urls in
+            guard !urls.isEmpty else { return }
+            GooNicappState.pendingShareURLs = []
+            addURLs(urls)
         }
         .alert("Error", isPresented: Binding(
             get: { errorMessage != nil },

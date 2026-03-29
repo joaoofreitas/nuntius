@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var appState: AppState
     @State private var tab: Int = 0
 
     var body: some View {
@@ -22,6 +23,7 @@ struct ContentView: View {
                 .opacity(tab == 1 ? 1 : 0)
                 .padding(.bottom, 60)
 
+
             HStack(spacing: 0) {
                 tabItem(0, label: "SEND", icon: "arrow.up.circle")
                 tabItem(1, label: "RECEIVE", icon: "arrow.down.circle")
@@ -35,6 +37,9 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: appState.activeTab) { newTab in
+            tab = newTab
+        }
     }
 
     /// Builds a single bottom tab item
@@ -85,4 +90,5 @@ extension Font {
 
 #Preview {
     ContentView()
+        .environmentObject(AppState())
 }
