@@ -1,0 +1,10 @@
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/diatomic_waker-c74f5a437552d376.d: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/arc_waker.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/borrowed_waker.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/loom_exports.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/primitives.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/waker.rs
+
+/Users/johnny/Documents/Projects/nuntius/ios/nuntius-ffi/target/debug/deps/libdiatomic_waker-c74f5a437552d376.rmeta: /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/lib.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/arc_waker.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/borrowed_waker.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/loom_exports.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/primitives.rs /Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/waker.rs
+
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/lib.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/arc_waker.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/borrowed_waker.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/loom_exports.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/primitives.rs:
+/Users/johnny/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/diatomic-waker-0.2.3/src/waker.rs:
