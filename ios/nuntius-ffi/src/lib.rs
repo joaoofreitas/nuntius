@@ -39,7 +39,7 @@ pub trait SendCallback: Send + Sync {
 #[uniffi::export(callback_interface)]
 pub trait ReceiveCallback: Send + Sync {
     fn on_progress(&self, bytes_received: u64, total_bytes: u64);
-    fn on_done(&self, name: String);
+    fn on_done(&self, names: Vec<String>);
     fn on_error(&self, msg: String);
 }
 
@@ -144,24 +144,25 @@ impl SendHandle {
 
 // ── send_file ─────────────────────────────────────────────────────────────────
 
-/// Start serving a file over iroh P2P.
+/// Start serving one or more files over iroh P2P.
 ///
-/// Spawns an async task that imports the file, spins up an ephemeral iroh node,
-/// and calls callback.on_ready() with the handle. Errors are reported via callback.on_error().
+/// Spawns an async task that imports all files into a single collection, spins up an
+/// ephemeral iroh node, and calls callback.on_ready() with the handle. Errors are
+/// reported via callback.on_error().
 ///
-/// @param path     Absolute path to the file to send
+/// @param paths    Absolute paths to the files to send
 /// @param callback Receives either the SendHandle or an error message
 #[uniffi::export]
-pub fn send_file(path: String, callback: Box<dyn SendCallback>) {
+pub fn send_files(paths: Vec<String>, callback: Box<dyn SendCallback>) {
     rt().spawn(async move {
-        match do_send_file(path).await {
+        match do_send_files(paths).await {
             Ok(handle) => callback.on_ready(handle),
             Err(e) => callback.on_error(e.to_string()),
         }
     });
 }
 
-async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
+async fn do_send_files(paths: Vec<String>) -> Result<Arc<SendHandle>, NuntiusError> {
     use iroh::{Endpoint, RelayMode, SecretKey};
     use iroh_blobs::{
         api::blobs::{AddPathOptions, AddProgressItem, ImportMode},
@@ -172,6 +173,10 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
         BlobFormat, BlobsProtocol,
     };
     use n0_future::StreamExt;
+
+    if paths.is_empty() {
+        return Err(e!("no files to send"));
+    }
 
     let secret_key = SecretKey::generate(&mut rand::rng());
 
@@ -199,39 +204,49 @@ async fn do_send_file(path: String) -> Result<Arc<SendHandle>, NuntiusError> {
         )),
     );
 
-    let file_path = std::path::PathBuf::from(&path);
-    let name = file_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("file")
-        .to_string();
+    // Import each file and accumulate (name, hash) entries.
+    // Keep TempTags alive until the collection is stored so blobs aren't GC'd.
+    let mut file_tags: Vec<iroh_blobs::api::TempTag> = Vec::new();
+    let mut entries: Vec<(String, iroh_blobs::Hash)> = Vec::new();
 
-    let mut stream = blobs
-        .store()
-        .add_path_with_opts(AddPathOptions {
-            path: file_path,
-            mode: ImportMode::Copy,
-            format: BlobFormat::Raw,
-        })
-        .stream()
-        .await;
+    for path in &paths {
+        let file_path = std::path::PathBuf::from(path);
+        let name = file_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("file")
+            .to_string();
 
-    let file_tag = loop {
-        match stream.next().await {
-            Some(AddProgressItem::Done(tag)) => break tag,
-            Some(AddProgressItem::Error(cause)) => return Err(e!(cause)),
-            Some(_) => continue,
-            None => return Err(e!("import stream ended without a result")),
-        }
-    };
+        let mut stream = blobs
+            .store()
+            .add_path_with_opts(AddPathOptions {
+                path: file_path,
+                mode: ImportMode::Copy,
+                format: BlobFormat::Raw,
+            })
+            .stream()
+            .await;
 
-    let collection: Collection = [(name, file_tag.hash())].into_iter().collect();
+        let file_tag = loop {
+            match stream.next().await {
+                Some(AddProgressItem::Done(tag)) => break tag,
+                Some(AddProgressItem::Error(cause)) => return Err(e!(cause)),
+                Some(_) => continue,
+                None => return Err(e!("import stream ended without a result")),
+            }
+        };
+
+        entries.push((name, file_tag.hash()));
+        file_tags.push(file_tag);
+    }
+
+    let collection: Collection = entries.into_iter().collect();
     let collection_tag = collection
         .store(blobs.store())
         .await
         .map_err(|e| e!(e))?;
 
-    drop(file_tag);
+    drop(file_tags);
 
     let hash = collection_tag.hash();
 
@@ -271,7 +286,7 @@ pub fn receive_file(ticket: String, dest_dir: String, callback: Box<dyn ReceiveC
     let callback = Arc::new(callback);
     rt().spawn(async move {
         match do_receive_file(ticket, dest_dir, Arc::clone(&callback)).await {
-            Ok(name) => callback.on_done(name),
+            Ok(names) => callback.on_done(names),
             Err(e) => callback.on_error(e.to_string()),
         }
     });
@@ -281,7 +296,7 @@ async fn do_receive_file(
     ticket: String,
     dest_dir: String,
     callback: Arc<Box<dyn ReceiveCallback>>,
-) -> Result<String, NuntiusError> {
+) -> Result<Vec<String>, NuntiusError> {
     use iroh::{Endpoint, RelayMode, SecretKey};
     use iroh_blobs::{
         api::{
@@ -357,12 +372,10 @@ async fn do_receive_file(
         .map_err(|e| e!(e))?;
 
     let dest = std::path::PathBuf::from(&dest_dir);
-    let mut first_name = String::new();
+    let mut names: Vec<String> = Vec::new();
 
     for (name, hash) in collection.iter() {
-        if first_name.is_empty() {
-            first_name = name.clone();
-        }
+        names.push(name.clone());
         let target = dest.join(name);
         if let Some(parent) = target.parent() {
             tokio::fs::create_dir_all(parent)
@@ -391,9 +404,9 @@ async fn do_receive_file(
     endpoint.close().await;
     db.shutdown().await.map_err(|e| e!(e))?;
 
-    if first_name.is_empty() {
+    if names.is_empty() {
         return Err(e!("received collection was empty"));
     }
 
-    Ok(first_name)
+    Ok(names)
 }
