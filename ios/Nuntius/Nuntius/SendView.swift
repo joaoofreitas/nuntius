@@ -8,20 +8,31 @@
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
+import PhotosUI
 
 struct SendView: View {
-    @State private var fileName: String = ""
-    @State private var fileSize: String = ""
-    @State private var fileURL: URL? = nil
+    @State private var selectedURLs: [URL] = []
+    @State private var totalSize: String = ""
     @State private var blobHash: String = ""
     @State private var isSending: Bool = false
-    @State private var showPicker: Bool = false
+    @State private var showSourceChoice: Bool = false
+    @State private var showFilePicker: Bool = false
+    @State private var showPhotoPicker: Bool = false
+    @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var sendHandle: SendHandle? = nil
     @State private var errorMessage: String? = nil
     @State private var didSend: Bool = false
     @State private var receiverConnected: Bool = false
     @State private var sendProgress: Double = 0
     @State private var sendTotal: Double = 0
+
+    private var selectionTitle: String {
+        switch selectedURLs.count {
+        case 0: return ""
+        case 1: return selectedURLs[0].lastPathComponent
+        default: return "\(selectedURLs.count) files"
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -34,16 +45,27 @@ struct SendView: View {
                 initView
             }
         }
-        .fileImporter(isPresented: $showPicker, allowedContentTypes: [.item]) { result in
-            guard let url = try? result.get() else { return }
-            fileURL = url
-            fileName = url.lastPathComponent
-            errorMessage = nil
-            let accessing = url.startAccessingSecurityScopedResource()
-            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
-            let bytes = attrs?[.size] as? Int64 ?? 0
-            fileSize = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
-            if accessing { url.stopAccessingSecurityScopedResource() }
+        .fileImporter(
+            isPresented: $showFilePicker,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: true
+        ) { result in
+            guard let urls = try? result.get() else { return }
+            addURLs(urls)
+        }
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $photoPickerItems,
+            maxSelectionCount: 20,
+            matching: .any(of: [.images, .videos])
+        )
+        .onChange(of: photoPickerItems) { items in
+            loadPhotoItems(items)
+        }
+        .confirmationDialog("Add files", isPresented: $showSourceChoice, titleVisibility: .hidden) {
+            Button("Photos & Videos") { showPhotoPicker = true }
+            Button("Files") { showFilePicker = true }
+            Button("Cancel", role: .cancel) {}
         }
         .alert("Error", isPresented: Binding(
             get: { errorMessage != nil },
@@ -77,61 +99,97 @@ struct SendView: View {
             Spacer().frame(height: 24)
 
             primaryButton(
-                label: isSending ? "PREPARING..." : "SEND",
-                active: !fileName.isEmpty,
+                label: "SEND",
+                active: !selectedURLs.isEmpty,
                 action: startSending
             )
-            .disabled(fileName.isEmpty)
+            .disabled(selectedURLs.isEmpty)
         }
     }
 
     private var dropZone: some View {
-        Button(action: { showPicker = true }) {
+        Button(action: { showSourceChoice = true }) {
             VStack(spacing: 18) {
                 Spacer()
-                Image(systemName: fileName.isEmpty ? "arrow.up.doc" : "doc.fill")
+
+                Image(systemName: dropZoneIcon)
                     .font(.system(size: 48, weight: .ultraLight))
-                    .foregroundColor(Color(hex: fileName.isEmpty ? "4d4553" : "9cff93"))
+                    .foregroundColor(Color(hex: selectedURLs.isEmpty ? "4d4553" : "9cff93"))
 
                 VStack(spacing: 8) {
-                    if fileName.isEmpty {
-                        Text("TAP TO SELECT FILE")
+                    if selectedURLs.isEmpty {
+                        Text("TAP TO SELECT FILES")
                             .font(.spaceBold(13))
                             .foregroundColor(Color(hex: "4d4553"))
                             .kerning(2)
                         Text("Photos, documents, archives — any format")
                             .font(.manrope(13))
                             .foregroundColor(Color(hex: "6b5f78"))
-                    } else {
-                        Text(fileName)
+                    } else if selectedURLs.count == 1 {
+                        Text(selectedURLs[0].lastPathComponent)
                             .font(.system(size: 15, weight: .semibold, design: .monospaced))
                             .foregroundColor(Color(hex: "9cff93"))
                             .multilineTextAlignment(.center)
                             .lineLimit(3)
                             .padding(.horizontal, 20)
-                        if !fileSize.isEmpty {
-                            Text(fileSize)
+                        if !totalSize.isEmpty {
+                            Text(totalSize)
                                 .font(.system(size: 13, design: .monospaced))
                                 .foregroundColor(Color(hex: "6b5f78"))
                         }
                         Text("Tap to change")
                             .font(.manrope(12))
                             .foregroundColor(Color(hex: "6b5f78"))
+                    } else {
+                        Text("\(selectedURLs.count) FILES SELECTED")
+                            .font(.spaceBold(13))
+                            .foregroundColor(Color(hex: "9cff93"))
+                            .kerning(2)
+                        if !totalSize.isEmpty {
+                            Text(totalSize + " total")
+                                .font(.system(size: 13, design: .monospaced))
+                                .foregroundColor(Color(hex: "6b5f78"))
+                        }
+                        VStack(spacing: 3) {
+                            ForEach(selectedURLs.prefix(3), id: \.path) { url in
+                                Text(url.lastPathComponent)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(Color(hex: "4d4553"))
+                                    .lineLimit(1)
+                            }
+                            if selectedURLs.count > 3 {
+                                Text("+ \(selectedURLs.count - 3) more")
+                                    .font(.manrope(11))
+                                    .foregroundColor(Color(hex: "4d4553"))
+                            }
+                        }
+                        Text("Tap to change")
+                            .font(.manrope(12))
+                            .foregroundColor(Color(hex: "6b5f78"))
                     }
                 }
+
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(hex: "1e1626"))
             .overlay(
                 Rectangle().strokeBorder(
-                    Color(hex: fileName.isEmpty ? "2c2137" : "9cff93")
-                        .opacity(fileName.isEmpty ? 1 : 0.35),
+                    Color(hex: selectedURLs.isEmpty ? "2c2137" : "9cff93")
+                        .opacity(selectedURLs.isEmpty ? 1 : 0.35),
                     style: StrokeStyle(lineWidth: 1, dash: [8, 5])
                 )
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private var dropZoneIcon: String {
+        switch selectedURLs.count {
+        case 0: return "arrow.up.doc"
+        case 1: return "doc.fill"
+        default: return "doc.on.doc.fill"
+        }
     }
 
     // MARK: - Transfer
@@ -180,14 +238,14 @@ struct SendView: View {
                 Circle()
                     .fill(Color(hex: "9cff93").opacity(0.5))
                     .frame(width: 5, height: 5)
-                Text("Importing file and starting P2P node")
+                Text("Importing \(selectedURLs.count == 1 ? "file" : "\(selectedURLs.count) files") and starting P2P node")
                     .font(.manrope(12))
                     .foregroundColor(Color(hex: "b2a7b9"))
                     .kerning(0.5)
             }
             .padding(.bottom, 32)
 
-            Text(fileName)
+            Text(selectionTitle)
                 .font(.system(size: 13, design: .monospaced))
                 .foregroundColor(Color(hex: "4d4553"))
                 .lineLimit(1)
@@ -203,7 +261,6 @@ struct SendView: View {
             VStack(alignment: .leading, spacing: 28) {
                 fileMetaBlock
 
-                // Receiver status / progress block
                 if receiverConnected && sendTotal > 0 {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 8) {
@@ -275,10 +332,18 @@ struct SendView: View {
         }
     }
 
-    private func progressLabel(sent: Double, total: Double) -> String {
-        ByteCountFormatter.string(fromByteCount: Int64(sent), countStyle: .file)
-            + " / "
-            + ByteCountFormatter.string(fromByteCount: Int64(total), countStyle: .file)
+    private var fileMetaBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(selectionTitle)
+                .font(.system(size: 17, weight: .semibold, design: .monospaced))
+                .foregroundColor(Color(hex: "f4e7f9"))
+                .lineLimit(2)
+            if !totalSize.isEmpty {
+                Text(totalSize)
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundColor(Color(hex: "b2a7b9"))
+            }
+        }
     }
 
     // MARK: - Sent
@@ -315,7 +380,7 @@ struct SendView: View {
                 Circle()
                     .fill(Color(hex: "9cff93"))
                     .frame(width: 5, height: 5)
-                Text("Receiver downloaded your file")
+                Text("Receiver downloaded your \(selectedURLs.count == 1 ? "file" : "files")")
                     .font(.manrope(12))
                     .foregroundColor(Color(hex: "b2a7b9"))
                     .kerning(0.5)
@@ -325,7 +390,7 @@ struct SendView: View {
             HStack(spacing: 16) {
                 ZStack {
                     Color(hex: "120c18")
-                    Image(systemName: "doc.fill")
+                    Image(systemName: selectedURLs.count == 1 ? "doc.fill" : "doc.on.doc.fill")
                         .font(.system(size: 26))
                         .foregroundColor(Color(hex: "9cff93"))
                 }
@@ -333,12 +398,12 @@ struct SendView: View {
                 .overlay(Rectangle().stroke(Color(hex: "4d4553").opacity(0.4), lineWidth: 1))
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(fileName)
+                    Text(selectionTitle)
                         .font(.system(size: 15, weight: .semibold, design: .monospaced))
                         .foregroundColor(Color(hex: "f4e7f9"))
                         .lineLimit(2)
-                    if !fileSize.isEmpty {
-                        Text(fileSize)
+                    if !totalSize.isEmpty {
+                        Text(totalSize)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(Color(hex: "b2a7b9"))
                     }
@@ -381,23 +446,14 @@ struct SendView: View {
         }
     }
 
-    private var fileMetaBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(fileName)
-                .font(.system(size: 17, weight: .semibold, design: .monospaced))
-                .foregroundColor(Color(hex: "f4e7f9"))
-                .lineLimit(2)
-            if !fileSize.isEmpty {
-                Text(fileSize)
-                    .font(.system(size: 13, design: .monospaced))
-                    .foregroundColor(Color(hex: "b2a7b9"))
-            }
-        }
-    }
-
     // MARK: - Shared Components
 
-    /// Top brand header with optional dismiss button and divider
+    private func progressLabel(sent: Double, total: Double) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(sent), countStyle: .file)
+            + " / "
+            + ByteCountFormatter.string(fromByteCount: Int64(total), countStyle: .file)
+    }
+
     /// @param onDismiss Action for the X button, or nil to hide it
     /// @returns A styled header with NUNTIUS branding
     private func appHeader(onDismiss: (() -> Void)?) -> some View {
@@ -435,9 +491,6 @@ struct SendView: View {
         }
     }
 
-    /// Uppercase section label in monospaced style
-    /// @param title The label text
-    /// @returns A styled section label view
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
             .font(.spaceBold(10))
@@ -445,11 +498,6 @@ struct SendView: View {
             .kerning(2.5)
     }
 
-    /// Full-width primary or disabled action button
-    /// @param label The button text
-    /// @param active Whether the primary style is applied
-    /// @param action The button action
-    /// @returns A styled full-width button
     private func primaryButton(label: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
@@ -462,23 +510,66 @@ struct SendView: View {
         }
     }
 
+    // MARK: - File selection helpers
+
+    /// Adds file picker URLs and recalculates total size.
+    private func addURLs(_ urls: [URL]) {
+        selectedURLs = urls
+        errorMessage = nil
+        recalcTotalSize()
+    }
+
+    /// Loads photo items from the photos picker and copies them to temp storage.
+    private func loadPhotoItems(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
+        Task {
+            var tempURLs: [URL] = []
+            for item in items {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "bin"
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension(ext)
+                    try? data.write(to: tempURL)
+                    tempURLs.append(tempURL)
+                }
+            }
+            await MainActor.run {
+                selectedURLs = tempURLs
+                errorMessage = nil
+                recalcTotalSize()
+            }
+        }
+    }
+
+    private func recalcTotalSize() {
+        let bytes = selectedURLs.reduce(Int64(0)) { sum, url in
+            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+            return sum + (attrs?[.size] as? Int64 ?? 0)
+        }
+        totalSize = bytes > 0 ? ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) : ""
+    }
+
     // MARK: - Actions
 
     private func startSending() {
-        guard let url = fileURL else { return }
+        guard !selectedURLs.isEmpty else { return }
         isSending = true
         blobHash = ""
         errorMessage = nil
 
-        let accessing = url.startAccessingSecurityScopedResource()
+        let accesses = selectedURLs.map { $0.startAccessingSecurityScopedResource() }
+        let paths = selectedURLs.map { $0.path }
 
         Task {
             do {
-                let handle = try await sendFile(path: url.path)
+                let handle = try await sendFiles(paths: paths)
                 await MainActor.run {
                     blobHash = handle.ticket()
                     sendHandle = handle
-                    if accessing { url.stopAccessingSecurityScopedResource() }
+                    zip(selectedURLs, accesses).forEach { url, accessing in
+                        if accessing { url.stopAccessingSecurityScopedResource() }
+                    }
                 }
                 handle.onSendProgress(callback: SendProgressCallbackImpl(
                     onConnected: {
@@ -502,7 +593,9 @@ struct SendView: View {
                 await MainActor.run {
                     isSending = false
                     errorMessage = error.localizedDescription
-                    if accessing { url.stopAccessingSecurityScopedResource() }
+                    zip(selectedURLs, accesses).forEach { url, accessing in
+                        if accessing { url.stopAccessingSecurityScopedResource() }
+                    }
                 }
             }
         }
@@ -522,9 +615,8 @@ struct SendView: View {
         didSend = false
         isSending = false
         blobHash = ""
-        fileName = ""
-        fileSize = ""
-        fileURL = nil
+        selectedURLs = []
+        totalSize = ""
         sendHandle = nil
         receiverConnected = false
         sendProgress = 0

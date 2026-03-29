@@ -7,18 +7,18 @@
 
 import Foundation
 
-/// @param path Absolute path to the file to send
+/// @param paths Absolute paths to the files to send
 /// @returns A SendHandle whose ticket() can be shared with the receiver
-func sendFile(path: String) async throws -> SendHandle {
+func sendFiles(paths: [String]) async throws -> SendHandle {
     try await withCheckedThrowingContinuation { continuation in
-        sendFile(path: path, callback: SendCallbackBridge(continuation))
+        sendFiles(paths: paths, callback: SendCallbackBridge(continuation))
     }
 }
 
 /// @param ticket  The ticket string produced by the sender
-/// @param destDir Absolute path to the directory where the file will be saved
-/// @returns The filename of the received file relative to destDir
-func receiveFile(ticket: String, destDir: String) async throws -> String {
+/// @param destDir Absolute path to the directory where the files will be saved
+/// @returns The filenames of the received files relative to destDir
+func receiveFile(ticket: String, destDir: String) async throws -> [String] {
     try await withCheckedThrowingContinuation { continuation in
         receiveFile(ticket: ticket, destDir: destDir, callback: ReceiveCallbackBridge(continuation))
     }
@@ -41,18 +41,16 @@ private class SendCallbackBridge: SendCallback {
 }
 
 private class ReceiveCallbackBridge: ReceiveCallback {
-    func onProgress(bytesReceived: UInt64, totalBytes: UInt64) {
-        
-    }
+    private let continuation: CheckedContinuation<[String], Error>
 
-    private let continuation: CheckedContinuation<String, Error>
-
-    init(_ continuation: CheckedContinuation<String, Error>) {
+    init(_ continuation: CheckedContinuation<[String], Error>) {
         self.continuation = continuation
     }
 
-    func onDone(name: String) {
-        continuation.resume(returning: name)
+    func onProgress(bytesReceived: UInt64, totalBytes: UInt64) {}
+
+    func onDone(names: [String]) {
+        continuation.resume(returning: names)
     }
 
     func onError(msg: String) {

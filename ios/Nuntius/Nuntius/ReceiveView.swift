@@ -17,9 +17,13 @@ struct ReceiveView: View {
     @State private var showShareSheet: Bool = false
 
     struct ReceivedFile {
-        let name: String
-        let size: String
-        let url: URL
+        let names: [String]
+        let totalSize: String
+        let urls: [URL]
+
+        var displayTitle: String {
+            names.count == 1 ? names[0] : "\(names.count) files"
+        }
     }
 
     var body: some View {
@@ -153,15 +157,14 @@ struct ReceiveView: View {
     // MARK: - File Received
 
     /// Builds the full-screen success state after a transfer completes
-    /// @param file The received file metadata
-    /// @returns A centered success view with metadata card and save action
+    /// @param file The received file(s) metadata
+    /// @returns A centered success view with file list and save action
     private func fileReceivedView(_ file: ReceivedFile) -> some View {
         VStack(spacing: 0) {
             appHeader
 
             Spacer()
 
-            // Icon
             ZStack {
                 Rectangle()
                     .fill(Color(hex: "9cff93").opacity(0.08))
@@ -188,52 +191,53 @@ struct ReceiveView: View {
                 Circle()
                     .fill(Color(hex: "9cff93"))
                     .frame(width: 5, height: 5)
-                Text("Transfer complete")
+                Text("Transfer complete · \(file.totalSize)")
                     .font(.manrope(12))
                     .foregroundColor(Color(hex: "b2a7b9"))
                     .kerning(0.5)
             }
             .padding(.bottom, 40)
 
-            // File card
-            HStack(spacing: 16) {
-                ZStack {
-                    Color(hex: "120c18")
-                    Image(systemName: "doc.fill")
-                        .font(.system(size: 26))
-                        .foregroundColor(Color(hex: "9cff93"))
-                }
-                .frame(width: 56, height: 56)
-                .overlay(Rectangle().stroke(Color(hex: "4d4553").opacity(0.4), lineWidth: 1))
+            // File list card
+            VStack(spacing: 0) {
+                ForEach(Array(file.names.enumerated()), id: \.offset) { index, name in
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Color(hex: "120c18")
+                            Image(systemName: "doc.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(Color(hex: "9cff93"))
+                        }
+                        .frame(width: 40, height: 40)
+                        .overlay(Rectangle().stroke(Color(hex: "4d4553").opacity(0.4), lineWidth: 1))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(file.name)
-                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                        .foregroundColor(Color(hex: "f4e7f9"))
-                        .lineLimit(2)
-                    HStack(spacing: 8) {
-                        Text(file.size)
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(Color(hex: "b2a7b9"))
+                        Text(name)
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .foregroundColor(Color(hex: "f4e7f9"))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+
+                    if index < file.names.count - 1 {
                         Rectangle()
-                            .fill(Color(hex: "4d4553"))
-                            .frame(width: 3, height: 3)
-                        Text("SHA-256 VERIFIED")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundColor(Color(hex: "9cff93"))
+                            .fill(Color(hex: "2c2137"))
+                            .frame(height: 1)
+                            .padding(.leading, 72)
                     }
                 }
-
-                Spacer()
             }
-            .padding(20)
             .background(Color(hex: "1e1626"))
-            .overlay(Rectangle().stroke(Color(hex: "9cff93").opacity(0.12), lineWidth: 1))
+            .overlay(
+                Rectangle().stroke(Color(hex: "9cff93").opacity(0.12), lineWidth: 1)
+            )
             .padding(.horizontal, 24)
 
             Spacer()
 
-            // Trace line
             VStack(spacing: 8) {
                 LinearGradient(
                     colors: [.clear, Color(hex: "4d4553").opacity(0.4), .clear],
@@ -250,13 +254,12 @@ struct ReceiveView: View {
             }
             .padding(.bottom, 20)
 
-            // Buttons
             VStack(spacing: 0) {
                 Button(action: { showShareSheet = true }) {
                     HStack(spacing: 10) {
                         Image(systemName: "square.and.arrow.down")
                             .font(.system(size: 14))
-                        Text("SAVE FILE")
+                        Text(file.names.count == 1 ? "SAVE FILE" : "SAVE ALL FILES")
                             .font(.spaceBold(14))
                             .kerning(3)
                     }
@@ -282,7 +285,7 @@ struct ReceiveView: View {
                 }
             }
             .sheet(isPresented: $showShareSheet) {
-                ActivityViewController(url: file.url)
+                ActivityViewController(urls: file.urls)
             }
         }
     }
@@ -353,14 +356,16 @@ struct ReceiveView: View {
                     downloadTotal = Double(total)
                 }
             },
-            onDone: { name in
-                let fileURL = dest.appendingPathComponent(name)
-                let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
-                let bytes = attrs?[.size] as? Int64 ?? 0
-                let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+            onDone: { names in
+                let urls = names.map { dest.appendingPathComponent($0) }
+                let totalBytes = urls.reduce(Int64(0)) { sum, url in
+                    let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+                    return sum + (attrs?[.size] as? Int64 ?? 0)
+                }
+                let size = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
                 DispatchQueue.main.async {
                     isFetching = false
-                    receivedFile = ReceivedFile(name: name, size: size, url: fileURL)
+                    receivedFile = ReceivedFile(names: names, totalSize: size, urls: urls)
                 }
             },
             onError: { _ in
@@ -381,12 +386,12 @@ struct ReceiveView: View {
 /// Bridges the uniffi ReceiveCallback protocol to Swift closures.
 private class ReceiveProgressCallbackImpl: ReceiveCallback {
     private let onProgressHandler: (UInt64, UInt64) -> Void
-    private let onDoneHandler: (String) -> Void
+    private let onDoneHandler: ([String]) -> Void
     private let onErrorHandler: (String) -> Void
 
     init(
         onProgress: @escaping (UInt64, UInt64) -> Void,
-        onDone: @escaping (String) -> Void,
+        onDone: @escaping ([String]) -> Void,
         onError: @escaping (String) -> Void
     ) {
         self.onProgressHandler = onProgress
@@ -395,17 +400,17 @@ private class ReceiveProgressCallbackImpl: ReceiveCallback {
     }
 
     func onProgress(bytesReceived: UInt64, totalBytes: UInt64) { onProgressHandler(bytesReceived, totalBytes) }
-    func onDone(name: String) { onDoneHandler(name) }
+    func onDone(names: [String]) { onDoneHandler(names) }
     func onError(msg: String) { onErrorHandler(msg) }
 }
 
-/// UIActivityViewController wrapper for SwiftUI
-/// @param url The file URL to share/save
+/// UIActivityViewController wrapper for SwiftUI — supports sharing multiple files
+/// @param urls The file URLs to share/save
 private struct ActivityViewController: UIViewControllerRepresentable {
-    let url: URL
+    let urls: [URL]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        UIActivityViewController(activityItems: urls, applicationActivities: nil)
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
