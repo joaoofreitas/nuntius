@@ -3,8 +3,13 @@ use tokio::sync::{Mutex, mpsc};
 
 uniffi::setup_scaffolding!();
 
+// ── Runtime ───────────────────────────────────────────────────────────────────
+
+/// A single shared Tokio runtime used for all async FFI operations.
+/// Initialised once on first use via OnceLock.
 static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 
+/// Returns a reference to the shared Tokio runtime, initialising it on first call.
 fn rt() -> &'static tokio::runtime::Runtime {
     RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()
@@ -16,12 +21,15 @@ fn rt() -> &'static tokio::runtime::Runtime {
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
+/// The error type returned by all public FFI functions.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum NuntiusError {
+    /// A generic runtime error carrying a human-readable message.
     #[error("{msg}")]
     Error { msg: String },
 }
 
+/// Convenience macro to construct a NuntiusError::Error from any Display value.
 macro_rules! e {
     ($val:expr) => {
         NuntiusError::Error { msg: $val.to_string() }
@@ -30,56 +38,73 @@ macro_rules! e {
 
 // ── Callbacks ─────────────────────────────────────────────────────────────────
 
+/// Callback interface for the send operation.
+/// Implemented by the Swift side to receive either a ready handle or an error.
 #[uniffi::export(callback_interface)]
 pub trait SendCallback: Send + Sync {
+    /// Called once the iroh node is ready and serving. Provides the send handle.
     fn on_ready(&self, handle: Arc<SendHandle>);
+    /// Called if an error occurs during setup. The session should be considered failed.
     fn on_error(&self, msg: String);
 }
 
+/// Callback interface for the receive operation.
+/// Implemented by the Swift side to receive progress, completion, or error events.
 #[uniffi::export(callback_interface)]
 pub trait ReceiveCallback: Send + Sync {
+    /// Called periodically during the download with bytes received and total expected bytes.
     fn on_progress(&self, bytes_received: u64, total_bytes: u64);
+    /// Called when all files have been successfully written to disk.
     fn on_done(&self, names: Vec<String>);
+    /// Called if a fatal error occurs. The session should be considered failed.
     fn on_error(&self, msg: String);
 }
 
-/// Progress events for the sender side. Registered on a SendHandle after it is ready.
+/// Callback interface for sender-side transfer progress.
+/// Registered on a SendHandle after it becomes ready via on_send_progress().
 #[uniffi::export(callback_interface)]
 pub trait SendProgressCallback: Send + Sync {
-    /// Called when a receiver first connects.
+    /// Called when a receiver first establishes a connection.
     fn on_receiver_connected(&self);
-    /// Called repeatedly as bytes are transferred to the receiver.
+    /// Called repeatedly as bytes are sent to the receiver.
     fn on_progress(&self, bytes_sent: u64, total_bytes: u64);
-    /// Called when the receiver has finished downloading.
+    /// Called when the receiver has successfully downloaded all files.
     fn on_done(&self);
 }
 
 // ── SendHandle ────────────────────────────────────────────────────────────────
 
-/// Opaque handle to an active send session.
+/// An opaque handle to an active iroh send session.
 /// Hold onto this while the receiver is downloading; call stop() when done.
 #[derive(uniffi::Object)]
 pub struct SendHandle {
+    /// The iroh blob ticket string to share with the receiver.
     ticket: String,
+    /// The active iroh router. Wrapped in a Mutex so stop() can take ownership.
     router: Mutex<Option<iroh::protocol::Router>>,
+    /// Channel receiver for provider events (connections, progress, completion).
+    /// Consumed once by on_send_progress(); subsequent calls are no-ops.
     event_rx: Mutex<Option<mpsc::Receiver<iroh_blobs::provider::events::ProviderMessage>>>,
-    // Keep the collection tag alive so iroh doesn't GC the blobs.
+    /// Keeps the collection tag alive so iroh does not garbage-collect the blobs.
     _tag: iroh_blobs::api::TempTag,
-    // Keep the store alive — dropping it shuts down the blob-serving actor.
+    /// Keeps the blob store alive — dropping it shuts down the blob-serving actor.
     _store: iroh_blobs::store::fs::FsStore,
-    // Keep the blob store directory alive until the session ends.
+    /// Keeps the temporary blob store directory alive for the duration of the session.
     _dir: tempfile::TempDir,
 }
 
 #[uniffi::export]
 impl SendHandle {
-    /// The ticket string the receiver needs to download the file.
+    /// Returns the iroh blob ticket string the receiver needs to start the download.
     pub fn ticket(&self) -> String {
         self.ticket.clone()
     }
 
-    /// Register a callback that receives connection and transfer progress events.
-    /// May only be called once; subsequent calls are no-ops.
+    /// Registers a callback that receives connection and transfer progress events.
+    /// The event channel is consumed on the first call; subsequent calls are no-ops.
+    ///
+    /// # Arguments
+    /// * `callback` - Receives on_receiver_connected, on_progress, and on_done events.
     pub fn on_send_progress(&self, callback: Box<dyn SendProgressCallback>) {
         let rx = rt().block_on(async { self.event_rx.lock().await.take() });
         let Some(mut rx) = rx else { return };
@@ -130,7 +155,8 @@ impl SendHandle {
         });
     }
 
-    /// Shut down the sender. Call this after the transfer completes.
+    /// Shuts down the iroh node and releases all associated resources.
+    /// Should be called after the transfer completes or is cancelled.
     pub fn stop(&self) {
         rt().block_on(async {
             let mut guard: tokio::sync::MutexGuard<Option<iroh::protocol::Router>> =
@@ -142,16 +168,18 @@ impl SendHandle {
     }
 }
 
-// ── send_file ─────────────────────────────────────────────────────────────────
+// ── send_files ────────────────────────────────────────────────────────────────
 
-/// Start serving one or more files over iroh P2P.
+/// Starts serving one or more files over iroh P2P.
 ///
-/// Spawns an async task that imports all files into a single collection, spins up an
-/// ephemeral iroh node, and calls callback.on_ready() with the handle. Errors are
-/// reported via callback.on_error().
+/// Spawns an async task that imports all files into a single collection, starts an
+/// ephemeral iroh node, and calls callback.on_ready() with a SendHandle once ready.
+/// The handle's ticket() should be shared with the receiver. Errors are reported
+/// via callback.on_error().
 ///
-/// @param paths    Absolute paths to the files to send
-/// @param callback Receives either the SendHandle or an error message
+/// # Arguments
+/// * `paths`    - Absolute file system paths to the files to send.
+/// * `callback` - Receives either a SendHandle on success or an error message.
 #[uniffi::export]
 pub fn send_files(paths: Vec<String>, callback: Box<dyn SendCallback>) {
     rt().spawn(async move {
@@ -162,6 +190,8 @@ pub fn send_files(paths: Vec<String>, callback: Box<dyn SendCallback>) {
     });
 }
 
+/// Internal async implementation of send_files.
+/// Imports files, builds a collection, starts an iroh node, and returns a SendHandle.
 async fn do_send_files(paths: Vec<String>) -> Result<Arc<SendHandle>, NuntiusError> {
     use iroh::{Endpoint, RelayMode, SecretKey};
     use iroh_blobs::{
@@ -191,6 +221,7 @@ async fn do_send_files(paths: Vec<String>) -> Result<Arc<SendHandle>, NuntiusErr
     let dir = tempfile::tempdir().map_err(|e| e!(e))?;
     let store = FsStore::load(dir.path()).await.map_err(|e| e!(e))?;
 
+    // Set up a provider event channel to observe connections and transfer progress.
     let (event_tx, event_rx) = mpsc::channel(32);
     let blobs = BlobsProtocol::new(
         &store,
@@ -204,8 +235,8 @@ async fn do_send_files(paths: Vec<String>) -> Result<Arc<SendHandle>, NuntiusErr
         )),
     );
 
-    // Import each file and accumulate (name, hash) entries.
-    // Keep TempTags alive until the collection is stored so blobs aren't GC'd.
+    // Import each file and accumulate (name, hash) pairs.
+    // TempTags are kept alive until the collection is stored to prevent premature GC.
     let mut file_tags: Vec<iroh_blobs::api::TempTag> = Vec::new();
     let mut entries: Vec<(String, iroh_blobs::Hash)> = Vec::new();
 
@@ -246,6 +277,7 @@ async fn do_send_files(paths: Vec<String>) -> Result<Arc<SendHandle>, NuntiusErr
         .await
         .map_err(|e| e!(e))?;
 
+    // Release individual file tags now that the collection holds the root reference.
     drop(file_tags);
 
     let hash = collection_tag.hash();
@@ -254,6 +286,7 @@ async fn do_send_files(paths: Vec<String>) -> Result<Arc<SendHandle>, NuntiusErr
         .accept(iroh_blobs::ALPN, blobs)
         .spawn();
 
+    // Wait up to 10 seconds for the node to come online before returning the ticket.
     let ep = router.endpoint();
     let _ = tokio::time::timeout(std::time::Duration::from_secs(10), ep.online()).await;
 
@@ -272,15 +305,17 @@ async fn do_send_files(paths: Vec<String>) -> Result<Arc<SendHandle>, NuntiusErr
 
 // ── receive_file ──────────────────────────────────────────────────────────────
 
-/// Download a file using an iroh ticket.
+/// Downloads files from a remote iroh node identified by the given ticket.
 ///
 /// Spawns an async task that connects to the sender, downloads all blobs, exports
-/// the file(s) into dest_dir, and calls callback.on_done() with the filename.
+/// each file into dest_dir, and calls callback.on_done() with the filenames.
 /// Progress is reported via callback.on_progress() during the download.
+/// Errors are reported via callback.on_error().
 ///
-/// @param ticket    The ticket string produced by the sender
-/// @param dest_dir  Absolute path to the directory where the file will be saved
-/// @param callback  Receives progress updates, the filename on success, or an error message
+/// # Arguments
+/// * `ticket`   - The ticket string produced by the sender.
+/// * `dest_dir` - Absolute path to the directory where received files will be saved.
+/// * `callback` - Receives progress updates, filenames on success, or an error message.
 #[uniffi::export]
 pub fn receive_file(ticket: String, dest_dir: String, callback: Box<dyn ReceiveCallback>) {
     let callback = Arc::new(callback);
@@ -292,6 +327,8 @@ pub fn receive_file(ticket: String, dest_dir: String, callback: Box<dyn ReceiveC
     });
 }
 
+/// Internal async implementation of receive_file.
+/// Connects to the sender, fetches all blobs, and exports them to dest_dir.
 async fn do_receive_file(
     ticket: String,
     dest_dir: String,
@@ -332,7 +369,7 @@ async fn do_receive_file(
         .await
         .map_err(|e| e!(e))?;
 
-    // Fetch sizes before downloading so we can report meaningful progress.
+    // Fetch sizes before downloading so we can report meaningful progress to the caller.
     let (_hash_seq, sizes) = get_hash_seq_and_sizes(
         &connection,
         &hash_and_format.hash,
